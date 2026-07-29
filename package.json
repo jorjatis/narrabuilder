@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "deploy": "astro build && netlify deploy --prod --dir=dist",
+    "deploy:preview": "astro build && netlify deploy --dir=dist"
   },
   "dependencies": {
     "astro": "^6.0.5",
