@@ -1,35 +1,9 @@
-/* Hallmark · genre: modern-minimal · theme: custom dark-default · design-system: design.md · designed-as-app
+/* Hallmark · genre: modern-minimal · theme: custom light-default · design-system: design.md · designed-as-app
  * Pre-emit critique: P5 H5 E5 S4 R5 V4
- * Default: dark. Light via html[data-theme="light"]
+ * Default: light. Dark via html[data-theme="dark"]
  */
 
 :root,
-html[data-theme='dark'] {
-  color-scheme: dark;
-
-  --color-paper: oklch(15% 0.012 265);
-  --color-paper-2: oklch(18% 0.012 265);
-  --color-paper-3: oklch(22% 0.014 265);
-  --color-ink: oklch(96% 0.006 95);
-  --color-ink-2: oklch(78% 0.01 265);
-  --color-muted: oklch(62% 0.012 265);
-  --color-rule: oklch(28% 0.012 265);
-  --color-rule-2: oklch(36% 0.014 265);
-  --color-accent: oklch(72% 0.14 265);
-  --color-accent-ink: oklch(18% 0.03 265);
-  --color-accent-soft: oklch(28% 0.05 265);
-  --color-focus: oklch(74% 0.15 265);
-  --color-danger: oklch(68% 0.17 25);
-  --color-danger-soft: oklch(28% 0.05 25);
-  --color-btn: oklch(96% 0.006 95);
-  --color-btn-ink: oklch(18% 0.012 265);
-  --color-btn-hover: oklch(90% 0.008 95);
-
-  --shadow-soft: 0 1px 2px oklch(0% 0 0 / 0.35), 0 12px 32px oklch(0% 0 0 / 0.28);
-  --shadow-lift: 0 8px 28px oklch(0% 0 0 / 0.4);
-  --home-glow: oklch(42% 0.12 265 / 0.22);
-}
-
 html[data-theme='light'] {
   color-scheme: light;
 
@@ -57,6 +31,35 @@ html[data-theme='light'] {
 
   --nb-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25' stroke='%23707082' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --nb-chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 9.75 8 5.75 12 9.75' stroke='%23707082' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-paper: oklch(15% 0.012 265);
+  --color-paper-2: oklch(18% 0.012 265);
+  --color-paper-3: oklch(22% 0.014 265);
+  --color-ink: oklch(96% 0.006 95);
+  --color-ink-2: oklch(78% 0.01 265);
+  --color-muted: oklch(62% 0.012 265);
+  --color-rule: oklch(28% 0.012 265);
+  --color-rule-2: oklch(36% 0.014 265);
+  --color-accent: oklch(72% 0.14 265);
+  --color-accent-ink: oklch(18% 0.03 265);
+  --color-accent-soft: oklch(28% 0.05 265);
+  --color-focus: oklch(74% 0.15 265);
+  --color-danger: oklch(68% 0.17 25);
+  --color-danger-soft: oklch(28% 0.05 25);
+  --color-btn: oklch(96% 0.006 95);
+  --color-btn-ink: oklch(18% 0.012 265);
+  --color-btn-hover: oklch(90% 0.008 95);
+
+  --shadow-soft: 0 1px 2px oklch(0% 0 0 / 0.35), 0 12px 32px oklch(0% 0 0 / 0.28);
+  --shadow-lift: 0 8px 28px oklch(0% 0 0 / 0.4);
+  --home-glow: oklch(42% 0.12 265 / 0.22);
+
+  --nb-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25' stroke='%239a9aad' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --nb-chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 9.75 8 5.75 12 9.75' stroke='%239a9aad' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 :root {
@@ -112,7 +115,7 @@ html[data-theme='light'] {
   --nb-radius: var(--radius-input);
   --nb-header-h: var(--chrome-h);
 
-  /* Chevron for custom selects — theme-tinted stroke */
-  --nb-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25' stroke='%239a9aad' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --nb-chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 9.75 8 5.75 12 9.75' stroke='%239a9aad' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* Chevron for custom selects — overridden per theme above */
+  --nb-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25' stroke='%23707082' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --nb-chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 9.75 8 5.75 12 9.75' stroke='%23707082' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }

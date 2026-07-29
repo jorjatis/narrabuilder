@@ -34,11 +34,26 @@ const { title } = Astro.props;
           <slot name="config" />
         </div>
       </div>
-      <button class="nb-builder__rail-open" type="button" data-config-open aria-label="Mostrar editor" title="Mostrar editor">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m9 6 6 6-6 6" />
-        </svg>
-      </button>
+      <nav class="nb-builder__rail-icons" data-config-icons aria-label="Secciones del editor" aria-hidden="true">
+        <button type="button" data-config-open-section="steps" aria-label="Steps" title="Steps" tabindex="-1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+          </svg>
+        </button>
+        <button type="button" data-config-open-section="backgrounds" aria-label="Backgrounds" title="Backgrounds" tabindex="-1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="m21 15-5-5L5 21" />
+          </svg>
+        </button>
+        <button type="button" data-config-open-section="settings" aria-label="Ajustes" title="Ajustes" tabindex="-1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.61.87 1.03 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </nav>
     </aside>
 
     <main class="nb-builder__canvas">
@@ -46,6 +61,15 @@ const { title } = Astro.props;
     </main>
   </div>
 </Base>
+
+<script is:inline>
+  (function () {
+    var panel = document.querySelector('[data-config-panel]');
+    if (!panel) return;
+    var mobile = window.matchMedia('(max-width: 699px)').matches;
+    panel.setAttribute('data-collapsed', mobile ? 'true' : 'false');
+  })();
+</script>
 
 <style lang="scss" is:global>
   /* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: design.md · designed-as-app */
@@ -81,9 +105,10 @@ const { title } = Astro.props;
           transform: translateX(-8px);
         }
 
-        .nb-builder__rail-open {
+        .nb-builder__rail-icons {
           opacity: 1;
           pointer-events: auto;
+          visibility: visible;
         }
       }
     }
@@ -139,27 +164,48 @@ const { title } = Astro.props;
       scrollbar-color: var(--color-rule-2) transparent;
     }
 
-    &__rail-open {
+    &__rail-icons {
       position: absolute;
       inset: 0;
       display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 15px;
-      border: 0;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 0;
       background: var(--color-paper-2);
-      color: var(--color-muted);
-      cursor: pointer;
       opacity: 0;
       pointer-events: none;
+      visibility: hidden;
       transition:
-        background var(--dur-micro) var(--ease-out),
-        color var(--dur-micro) var(--ease-out),
-        opacity var(--dur-short) var(--ease-out);
+        opacity var(--dur-short) var(--ease-out),
+        visibility var(--dur-short) var(--ease-out);
 
-      &:hover {
-        background: var(--color-paper-3);
-        color: var(--color-ink);
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-control);
+        background: transparent;
+        color: var(--color-muted);
+        cursor: pointer;
+        transition:
+          background var(--dur-micro) var(--ease-out),
+          color var(--dur-micro) var(--ease-out);
+
+        &:hover {
+          background: var(--color-paper-3);
+          color: var(--color-ink);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--color-focus);
+          outline-offset: 1px;
+        }
       }
     }
 
@@ -797,7 +843,7 @@ const { title } = Astro.props;
     margin-top: var(--space-2xs);
   }
 
-  @media (max-width: 760px) {
+  @media (max-width: 699px) {
     .nb-builder {
       grid-template-columns: 1fr;
     }
@@ -825,20 +871,40 @@ const { title } = Astro.props;
 
 <script>
   const panel = document.querySelector('[data-config-panel]');
-  const openBtn = panel?.querySelector('[data-config-open]');
+  const iconsNav = panel?.querySelector('[data-config-icons]');
   const closeBtn = panel?.querySelector('[data-config-close]');
+  const mq = window.matchMedia('(max-width: 699px)');
 
   function setCollapsed(collapsed) {
     if (!panel) return;
     panel.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
-    if (openBtn) {
-      openBtn.hidden = !collapsed;
-      openBtn.setAttribute('aria-hidden', collapsed ? 'false' : 'true');
-      openBtn.tabIndex = collapsed ? 0 : -1;
+    if (iconsNav) {
+      iconsNav.setAttribute('aria-hidden', collapsed ? 'false' : 'true');
+      iconsNav.querySelectorAll('button').forEach((btn) => {
+        btn.tabIndex = collapsed ? 0 : -1;
+      });
     }
   }
 
-  setCollapsed(false);
-  openBtn?.addEventListener('click', () => setCollapsed(false));
+  function openSection(sectionId) {
+    setCollapsed(false);
+    panel?.querySelectorAll('[data-collapsible][data-section]').forEach((section) => {
+      const match = section.getAttribute('data-section') === sectionId;
+      section.setAttribute('data-collapsed', match ? 'false' : 'true');
+    });
+  }
+
+  function applyViewportDefault() {
+    setCollapsed(mq.matches);
+  }
+
+  applyViewportDefault();
+  mq.addEventListener('change', applyViewportDefault);
+
   closeBtn?.addEventListener('click', () => setCollapsed(true));
+  panel?.querySelectorAll('[data-config-open-section]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      openSection(btn.getAttribute('data-config-open-section'));
+    });
+  });
 </script>

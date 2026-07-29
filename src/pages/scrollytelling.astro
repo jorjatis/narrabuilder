@@ -4,8 +4,23 @@ import ScrollyConfig from '../components/scrollytelling/ScrollyConfig.astro';
 import ScrollyPreview from '../components/scrollytelling/ScrollyPreview.astro';
 ---
 <Component title="Scrollytelling">
-  <button slot="chrome-actions" class="nb-btn" id="cfg-export" type="button">
-    Copiar HTML
+  <button
+    slot="chrome-actions"
+    class="nb-btn nb-btn--export"
+    id="cfg-export"
+    type="button"
+    aria-label="Copiar HTML"
+    title="Copiar HTML"
+  >
+    <span class="nb-btn__full" data-export-label-full>Copiar HTML</span>
+    <span class="nb-btn__compact" aria-hidden="true">
+      <svg class="nb-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.5 14.5 20 12l-3.5-2.5" />
+        <path d="M7.5 9.5 4 12l3.5 2.5" />
+        <path d="m14 7-4 10" />
+      </svg>
+      <span class="nb-btn__caption" data-export-label>HTML</span>
+    </span>
   </button>
   <ScrollyConfig slot="config" />
   <ScrollyPreview slot="preview" />
@@ -1839,19 +1854,26 @@ import ScrollyPreview from '../components/scrollytelling/ScrollyPreview.astro';
   }
 
   exportBtn?.addEventListener('click', async () => {
-    const originalLabel = exportBtn.textContent;
+    const fullEl = exportBtn.querySelector('[data-export-label-full]');
+    const compactEl = exportBtn.querySelector('[data-export-label]');
+    const originalFull = fullEl?.textContent || 'Copiar HTML';
+    const originalCompact = compactEl?.textContent || 'HTML';
     exportBtn.disabled = true;
-    exportBtn.textContent = 'Copiando…';
+    if (fullEl) fullEl.textContent = 'Copiando…';
+    if (compactEl) compactEl.textContent = '…';
     try {
       const html = buildExportHtml();
       await navigator.clipboard.writeText(html);
-      exportBtn.textContent = 'Copiado';
+      if (fullEl) fullEl.textContent = 'Copiado';
+      if (compactEl) compactEl.textContent = 'OK';
     } catch {
-      exportBtn.textContent = 'Error';
+      if (fullEl) fullEl.textContent = 'Error';
+      if (compactEl) compactEl.textContent = 'Err';
     }
     window.setTimeout(() => {
       exportBtn.disabled = false;
-      exportBtn.textContent = originalLabel || 'Copiar HTML';
+      if (fullEl) fullEl.textContent = originalFull;
+      if (compactEl) compactEl.textContent = originalCompact;
     }, 1200);
   });
 
