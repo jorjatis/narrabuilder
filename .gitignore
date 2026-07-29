@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Astro
+.astro/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Cursor / agents / Hallmark (herramientas locales, no del producto)
+.cursor/
+.agents/
+.hallmark/
+skills-lock.json
+
+# Logs / debug / caches
+*.log
+debug-*.log
+.eslintcache
+*.tsbuildinfo
+.cache/
+.turbo/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Netlify (solo estado local del CLI; netlify.toml SÍ se versiona)
+.netlify/
+
+# Local / misc
+*.local
+coverage/
