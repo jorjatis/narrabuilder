@@ -1,0 +1,150 @@
+---
+import Base from '../layouts/Base.astro';
+import ComponentCard from '../components/catalog/ComponentCard.astro';
+
+const components = [
+  {
+    name: 'Scrollytelling',
+    description: 'Fondos sticky, cartelas y audio que cambian con el scroll.',
+    href: '/scrollytelling',
+    meta: 'Plantilla',
+  },
+];
+---
+<Base title="Inicio">
+  <main class="home">
+    <div class="home__glow" aria-hidden="true"></div>
+
+    <section class="home__hero">
+      <p class="home__eyebrow">Constructor visual</p>
+      <h1 class="home__title">Historias interactivas. En minutos.</h1>
+      <p class="home__lede">
+        Crea scroll stories, tours de producto y narrativas multimedia con la
+        velocidad de un borrador y el acabado de un producto.
+      </p>
+      <div class="home__cta">
+        <a class="nb-btn home__primary" href="/scrollytelling">Nueva historia</a>
+        <a class="nb-btn nb-btn--ghost home__secondary" href="#templates">Ver plantillas</a>
+      </div>
+    </section>
+
+    <section class="home__templates" id="templates" aria-label="Plantillas">
+      <div class="home__templates-head">
+        <h2>Empezar con</h2>
+        <p>Una plantilla. Listo para editar.</p>
+      </div>
+      <div class="home__grid">
+        {components.map((c) => (
+          <ComponentCard {...c} />
+        ))}
+      </div>
+    </section>
+  </main>
+</Base>
+
+<style lang="scss" is:global>
+  /* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: design.md · designed-as-app */
+  .home {
+    position: relative;
+    isolation: isolate;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-md) var(--space-3xl);
+    overflow-x: clip;
+  }
+
+  .home__glow {
+    pointer-events: none;
+    position: absolute;
+    top: -12%;
+    left: 50%;
+    z-index: -1;
+    width: min(720px, 90vw);
+    height: 420px;
+    transform: translateX(-42%);
+    background: radial-gradient(ellipse at center, var(--home-glow), transparent 68%);
+  }
+
+  .home__hero {
+    max-width: 38rem;
+    margin-bottom: var(--space-2xl);
+  }
+
+  .home__eyebrow {
+    margin-bottom: var(--space-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    font-style: normal;
+    letter-spacing: 0.01em;
+    color: var(--color-muted);
+  }
+
+  .home__title {
+    margin-bottom: var(--space-sm);
+    font-family: var(--font-display);
+    font-size: var(--text-display);
+    font-weight: 600;
+    font-style: normal;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    color: var(--color-ink);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  .home__lede {
+    max-width: 32rem;
+    margin-bottom: var(--space-lg);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    color: var(--color-ink-2);
+  }
+
+  .home__cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2xs);
+  }
+
+  .home__primary,
+  .home__secondary {
+    min-height: 40px;
+    padding: 0 18px;
+  }
+
+  .home__templates-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2xs);
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: var(--rule-hair) solid var(--color-rule);
+
+    h2 {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      font-style: normal;
+      color: var(--color-ink);
+    }
+
+    p {
+      font-size: var(--text-xs);
+      color: var(--color-muted);
+    }
+  }
+
+  .home__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  @media (min-width: 720px) {
+    .home__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

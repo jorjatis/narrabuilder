@@ -1,0 +1,10 @@
+{
+  "scanned_at": "2026-07-29",
+  "framework": "Astro 6",
+  "fonts": "Geist Sans + Geist Mono (CDN)",
+  "palette": "custom OKLCH via tokens.css / design.md",
+  "motion": "gsap + ScrollTrigger",
+  "spacing": "4pt named scale in tokens.css",
+  "preserve": ["Astro", "scrolly JS logic", "GSAP", "ZIP export"],
+  "introduce": ["design.md", "tokens", "workbench chrome", "slop discipline"]
+}

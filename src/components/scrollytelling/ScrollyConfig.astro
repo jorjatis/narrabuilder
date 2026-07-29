@@ -1,0 +1,132 @@
+---
+---
+<div class="scrolly-config" id="scrolly-config">
+  <div class="nb-section" data-collapsible data-collapsed="false">
+    <button class="nb-section__toggle" type="button" data-collapse-toggle>
+      <span class="nb-section__title">
+        <svg class="nb-section__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+        </svg>
+        <h2>Steps</h2>
+      </span>
+      <span class="nb-section__chevron" data-collapse-icon aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </span>
+    </button>
+    <div class="nb-section__body">
+      <div id="cfg-steps-list"></div>
+      <button class="nb-btn nb-btn--ghost nb-add-step" id="cfg-add-step" type="button">
+        Añadir step
+      </button>
+    </div>
+  </div>
+
+  <div class="nb-section" data-collapsible data-collapsed="true">
+    <button class="nb-section__toggle" type="button" data-collapse-toggle>
+      <span class="nb-section__title">
+        <svg class="nb-section__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+        <h2>Backgrounds</h2>
+      </span>
+      <span class="nb-section__chevron" data-collapse-icon aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </span>
+    </button>
+    <div class="nb-section__body">
+      <div id="cfg-bgs-list"></div>
+      <button class="nb-btn nb-btn--ghost nb-add-step" id="cfg-add-bg" type="button">
+        Añadir fondo
+      </button>
+    </div>
+  </div>
+
+  <div class="nb-section" data-collapsible data-collapsed="true">
+    <button class="nb-section__toggle" type="button" data-collapse-toggle>
+      <span class="nb-section__title">
+        <svg class="nb-section__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.61.87 1.03 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+        <h2>Ajustes</h2>
+      </span>
+      <span class="nb-section__chevron" data-collapse-icon aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </span>
+    </button>
+    <div class="nb-section__body">
+      <div class="nb-settings-block">
+        <span class="nb-settings-block__title">Título</span>
+        <label><input type="checkbox" data-header-option="showTitle" /> Título del header</label>
+        <div data-header-title-fields hidden>
+          <input type="text" id="cfg-header-fallback" value="Título por defecto" data-header-fallback />
+        </div>
+      </div>
+
+      <div class="nb-settings-block">
+        <span class="nb-settings-block__title">Navegación</span>
+        <label><input type="checkbox" data-header-option="showButtons" /> Botonera</label>
+        <label><input type="checkbox" data-header-option="showArrows" /> Flechas</label>
+        <label data-arrow-shadow-field hidden>
+          <input type="checkbox" data-header-option="arrowShadow" /> Sombras decorativas
+        </label>
+        <label><input type="checkbox" data-header-option="showCounter" /> Contador</label>
+        <label><input type="checkbox" data-header-option="showDots" /> Puntos</label>
+        <div data-nav-transition-field hidden>
+          <label for="cfg-header-nav-mode">Transición entre steps</label>
+          <select id="cfg-header-nav-mode" data-header-option="navMode">
+            <option value="smooth" selected>Suave</option>
+            <option value="instant">Instantánea</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="nb-settings-block" data-global-audio-controls>
+        <span class="nb-settings-block__title">Audio</span>
+        <p class="nb-help" data-audio-empty-hint>Activa un audio en algún step para ver ajustes</p>
+        <div data-audio-options hidden>
+          <label><input type="checkbox" data-audio-global="autoplay" /> Autoplay</label>
+          <div data-audio-show-play-field hidden>
+            <label><input type="checkbox" data-audio-global="showPlay" checked /> Mostrar play</label>
+          </div>
+          <label><input type="checkbox" data-audio-global="showMute" checked /> Mostrar mute</label>
+        </div>
+      </div>
+
+      <div class="nb-settings-block">
+        <span class="nb-settings-block__title">Párrafos</span>
+        <label>
+          <input type="checkbox" data-dev-filler="both" />
+          Ambos párrafos
+        </label>
+        <label>
+          <input type="checkbox" data-dev-filler="before" />
+          Párrafo superior
+        </label>
+        <label>
+          <input type="checkbox" data-dev-filler="after" />
+          Párrafo inferior
+        </label>
+        <p class="nb-help">Añade párrafos fuera del scrolly para probar el sticky con contenido alrededor.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-collapsible]').forEach((section) => {
+    const btn = section.querySelector('[data-collapse-toggle]');
+    btn?.addEventListener('click', () => {
+      const collapsed = section.getAttribute('data-collapsed') === 'true';
+      section.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
+    });
+  });
+</script>

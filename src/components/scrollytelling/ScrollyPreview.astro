@@ -1,0 +1,428 @@
+---
+---
+<div class="scrolly-preview-wrap" id="scrolly-preview">
+  <div class="v-n-scrolly" id="scrolly-container">
+    <div class="v-n-scrolly__sticky">
+      <div class="v-n-scrolly__bg" id="scrolly-bgs">
+        <div class="bg-item" data-bg="0">
+          <div class="bg-placeholder"><span>Placeholder Bg-item 1</span></div>
+        </div>
+        <div class="bg-item" data-bg="1">
+          <div class="bg-placeholder"><span>Placeholder Bg-item 2</span></div>
+        </div>
+        <div class="bg-item" data-bg="2">
+          <div class="bg-placeholder"><span>Placeholder Bg-item 3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="v-n-scrolly__steps" id="scrolly-steps">
+      <div class="step is-pinned" data-bg="0">
+        <div class="step__content"><p>Primer paso del scrollytelling. Edita este texto desde el panel.</p></div>
+      </div>
+      <div class="step" data-bg="1">
+        <div class="step__content"><p>Segundo paso. Edita este texto desde el panel.</p></div>
+      </div>
+      <div class="step" data-bg="2">
+        <div class="step__content"><p>Tercer paso. Puedes añadir, quitar o reordenar cuantos necesites.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style lang="scss" is:global>
+  .scrolly-preview-wrap {
+    width: 100%;
+    min-height: 100%;
+    background: #fff;
+    color-scheme: light;
+  }
+
+  .scrolly-scroll-filler {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+    font: 1.05rem/1.65 system-ui, sans-serif;
+    color: #333;
+
+    p {
+      margin: 0 0 1.25rem;
+    }
+
+    h3 {
+      margin: 0 0 1rem;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #1d3f74;
+    }
+  }
+
+  .v-n-scrolly {
+    --story-vh: calc(100vh - var(--chrome-h, 52px));
+    position: relative;
+    width: 100%;
+    background: #fff;
+    color-scheme: light;
+
+    &__sticky {
+      position: sticky;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: var(--story-vh);
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    &__bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    &__nav-tools {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    &__header {
+      position: absolute;
+      top: 32px;
+      left: 24px;
+      right: 72px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    &__header-title {
+      max-width: min(920px, calc(100vw - 120px));
+      font-size: clamp(28px, 6vw, 84px);
+      font-weight: 600;
+      line-height: 0.95;
+      color: #1d3f74;
+      text-align: left;
+      text-shadow: 0 10px 30px rgba(255, 255, 255, 0.8);
+    }
+
+    &__btn-nav {
+      position: absolute;
+      top: 140px;
+      left: 24px;
+      right: 72px;
+      z-index: 6;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    &__nav-btn,
+    &__arrow {
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: rgba(255, 255, 255, 0.85);
+      color: #1d3f74;
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    &__btn-nav[hidden],
+    &__arrows[hidden],
+    &__counter[hidden],
+    &__dots[hidden],
+    &__audio-ui[hidden],
+    &__header[hidden] {
+      display: none !important;
+    }
+
+    &__nav-btn.is-active {
+      background: #1d3f74;
+      color: #fff;
+    }
+
+    &__arrows {
+      position: absolute;
+      left: 24px;
+      bottom: 28px;
+      z-index: 6;
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    &__counter {
+      position: absolute;
+      left: 50%;
+      bottom: 32px;
+      z-index: 6;
+      transform: translateX(-50%);
+      min-width: 64px;
+      text-align: center;
+      font-size: 14px;
+      color: #1d3f74;
+      font-weight: 600;
+      pointer-events: auto;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    &__dots {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      z-index: 6;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(-50%);
+      pointer-events: auto;
+    }
+
+    &__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      border: 0;
+      background: rgba(29, 63, 116, 0.25);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    &__dot.is-active {
+      background: #1d3f74;
+      transform: scale(1.2);
+    }
+
+    &__audio-ui {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      z-index: 6;
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    &__audio-sources {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    &__audio-btn {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #1d3f74;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: opacity 0.2s ease;
+
+      svg {
+        display: block;
+      }
+
+      &:disabled,
+      &[aria-disabled='true'] {
+        opacity: 0.32;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+    }
+
+    &.has-shadows {
+      .v-n-scrolly__btn-nav {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+        mask-image: linear-gradient(
+          to right,
+          transparent,
+          #000 28px,
+          #000 calc(100% - 28px),
+          transparent
+        );
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      .v-n-scrolly__sticky::before,
+      .v-n-scrolly__sticky::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 56px;
+        z-index: 4;
+        pointer-events: none;
+      }
+
+      .v-n-scrolly__sticky::before {
+        left: 0;
+        background: linear-gradient(to right, rgba(0, 0, 0, 0.18), transparent);
+      }
+
+      .v-n-scrolly__sticky::after {
+        right: 0;
+        background: linear-gradient(to left, rgba(0, 0, 0, 0.18), transparent);
+      }
+    }
+
+    .bg-item {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      will-change: opacity;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+
+      &:first-child {
+        position: relative;
+      }
+
+      > img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+    }
+
+    &__steps {
+      position: relative;
+      z-index: 2;
+      pointer-events: none;
+
+      &:has(.step.is-pinned) .step {
+        padding-bottom: 10vh;
+      }
+
+      .step {
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        min-height: var(--story-vh);
+        margin-bottom: 0;
+        padding: 0 36px;
+        box-sizing: border-box;
+        pointer-events: none;
+
+        &[data-disabled='true'] {
+          display: none;
+        }
+
+        &.is-pinned {
+          margin-top: calc(var(--story-vh) * -1);
+        }
+
+        &__content {
+          max-width: 420px;
+          margin-left: auto;
+          padding: 22px 24px;
+          font: 18px/26px system-ui, sans-serif;
+          color: #3a3a3a;
+          border: 1px solid rgba(33, 33, 33, 0.08);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.88);
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+          backdrop-filter: blur(8px);
+          pointer-events: auto;
+
+          p {
+            margin: 0;
+          }
+
+          &.is-empty {
+            visibility: hidden;
+            pointer-events: none;
+          }
+        }
+      }
+    }
+  }
+
+  .bg-placeholder {
+    width: min(70vw, 820px);
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+    background: linear-gradient(135deg, #dadada, #c7c7c7);
+
+    span {
+      font-family: var(--font-display, system-ui, sans-serif);
+      font-size: clamp(18px, 2.4vw, 28px);
+      font-weight: 550;
+      font-style: normal;
+      letter-spacing: -0.02em;
+      color: rgba(0, 0, 0, 0.28);
+      text-transform: none;
+    }
+  }
+
+  .bg-item:nth-child(6n + 1) .bg-placeholder {
+    background: linear-gradient(135deg, #d7dbff, #a6b1ff);
+  }
+  .bg-item:nth-child(6n + 2) .bg-placeholder {
+    background: linear-gradient(135deg, #ffe1d0, #ffb48b);
+  }
+  .bg-item:nth-child(6n + 3) .bg-placeholder {
+    background: linear-gradient(135deg, #d8f3df, #90d5a5);
+  }
+  .bg-item:nth-child(6n + 4) .bg-placeholder {
+    background: linear-gradient(135deg, #fff2cc, #f8d16a);
+  }
+  .bg-item:nth-child(6n + 5) .bg-placeholder {
+    background: linear-gradient(135deg, #eadbff, #c8a3ff);
+  }
+  .bg-item:nth-child(6n + 6) .bg-placeholder {
+    background: linear-gradient(135deg, #d5eef7, #7fd2f0);
+  }
+
+  @media (max-width: 900px) {
+    .v-n-scrolly__steps .step {
+      justify-content: center;
+      align-items: flex-end;
+      padding: 0 20px;
+    }
+
+    .v-n-scrolly__steps .step__content {
+      margin-left: 0;
+    }
+
+    .v-n-scrolly__header,
+    .v-n-scrolly__btn-nav {
+      left: 16px;
+      right: 56px;
+    }
+  }
+</style>

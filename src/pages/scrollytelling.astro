@@ -1,0 +1,1871 @@
+---
+import Component from '../layouts/Component.astro';
+import ScrollyConfig from '../components/scrollytelling/ScrollyConfig.astro';
+import ScrollyPreview from '../components/scrollytelling/ScrollyPreview.astro';
+---
+<Component title="Scrollytelling">
+  <button slot="chrome-actions" class="nb-btn" id="cfg-export" type="button">
+    Copiar HTML
+  </button>
+  <ScrollyConfig slot="config" />
+  <ScrollyPreview slot="preview" />
+</Component>
+
+<script>
+  import scrolly from '../scripts/scrolly.js';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  const DEFAULT_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+  const AUDIO_LIBRARY = [
+    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+  ];
+  /** URLs indexadas 0-based; en HTML data-audio usa ids 1-based */
+  let audioSources = [...AUDIO_LIBRARY];
+  const cfg = {
+    showTitle: false,
+    showStepButtons: false,
+    showArrows: false,
+    arrowShadow: false,
+    showCounter: false,
+    showDots: false,
+    navMode: 'smooth',
+    showAudioPlay: true,
+    showAudioMute: true,
+    audioAutoplayGlobal: false,
+    fadeIn: 0.8,
+    fadeOut: 0.4,
+    fillerBefore: false,
+    fillerAfter: false,
+  };
+  const container = document.getElementById('scrolly-container');
+  const previewWrap = document.getElementById('scrolly-preview');
+  const stickyRoot = container?.querySelector('.v-n-scrolly__sticky');
+  const bgsWrap = document.getElementById('scrolly-bgs');
+  const stepsWrap = document.getElementById('scrolly-steps');
+  const stepsList = document.getElementById('cfg-steps-list');
+  const bgsList = document.getElementById('cfg-bgs-list');
+  const addBtn = document.getElementById('cfg-add-step');
+  const addBgBtn = document.getElementById('cfg-add-bg');
+  const exportBtn = document.getElementById('cfg-export');
+  const headerFallbackInput = document.querySelector('[data-header-fallback]');
+  const globalAudioWrap = document.querySelector('[data-global-audio-controls]');
+  const audioEmptyHint = document.querySelector('[data-audio-empty-hint]');
+  const audioOptions = document.querySelector('[data-audio-options]');
+
+  let titleTween = null;
+  let currentHeaderTitle = '';
+  let pointerDrag = null;
+  let audioMap = new Map();
+  let currentAudioUrl = '';
+  let currentAudio = null;
+  let audioMuted = false;
+  /** Si el usuario pausa, se mantiene pausado en todos los steps hasta que pulse play */
+  let audioShouldPlay = false;
+  let expandedStepCard = 0;
+
+  function getSteps() {
+    return [...stepsWrap.querySelectorAll('.step')];
+  }
+
+  function getEnabledSteps() {
+    return getSteps().filter((step) => step.dataset.disabled !== 'true');
+  }
+
+  function isStepDisabled(step) {
+    return step?.dataset.disabled === 'true';
+  }
+
+  function getBgs() {
+    return [...bgsWrap.querySelectorAll('.bg-item')];
+  }
+
+  function createPlaceholder(index) {
+    const div = document.createElement('div');
+    div.className = 'bg-item';
+    div.dataset.bg = String(index);
+    div.innerHTML = `<div class="bg-placeholder"><span>Placeholder Bg-item ${index + 1}</span></div>`;
+    return div;
+  }
+
+  function getBgImageUrl(bg) {
+    return bg?.querySelector('img')?.getAttribute('src') || '';
+  }
+
+  function setBgContent(bg, index, imageUrl = '') {
+    const url = (imageUrl || '').trim();
+    bg.dataset.bg = String(index);
+    if (url) {
+      bg.innerHTML = `<img src="${escapeHtml(url)}" alt="" />`;
+    } else {
+      bg.innerHTML = `<div class="bg-placeholder"><span>Placeholder Bg-item ${index + 1}</span></div>`;
+    }
+  }
+
+  function relabelBgPlaceholders() {
+    getBgs().forEach((bg, i) => {
+      bg.dataset.bg = String(i);
+      const label = bg.querySelector('.bg-placeholder span');
+      if (label) label.textContent = `Placeholder Bg-item ${i + 1}`;
+    });
+  }
+
+  function clampBgIndex(raw, fallback = 0) {
+    const max = Math.max(0, getBgs().length - 1);
+    const n = parseInt(raw ?? '', 10);
+    if (!Number.isFinite(n) || n < 0) return Math.min(fallback, max);
+    return Math.min(n, max);
+  }
+
+  function ensureStepBgAttrs() {
+    const max = Math.max(0, getBgs().length - 1);
+    getSteps().forEach((step, i) => {
+      const current = parseInt(step.dataset.bg ?? '', 10);
+      if (!Number.isFinite(current) || current < 0 || current > max) {
+        step.dataset.bg = String(Math.min(i, max));
+      }
+    });
+  }
+
+  function ensureAudioSource(url) {
+    const trimmed = (url || '').trim();
+    if (!trimmed) return '';
+    let idx = audioSources.indexOf(trimmed);
+    if (idx < 0) {
+      audioSources.push(trimmed);
+      idx = audioSources.length - 1;
+    }
+    return String(idx + 1);
+  }
+
+  function resolveAudioRef(ref) {
+    const raw = (ref || '').trim();
+    if (!raw) return '';
+    const id = parseInt(raw, 10);
+    if (Number.isFinite(id) && String(id) === raw && id >= 1) {
+      if (audioSources[id - 1]) return audioSources[id - 1];
+      const fromUi = container
+        ?.querySelector(`.v-n-scrolly__audio-ui audio[data-audio="${id}"]`)
+        ?.getAttribute('src');
+      if (fromUi) return fromUi;
+      return '';
+    }
+    return raw;
+  }
+
+  function clearRootAudioSourceAttrs(target = container) {
+    if (!target) return;
+    [...target.attributes].forEach((attr) => {
+      if (/^data-audio-\d+$/.test(attr.name)) target.removeAttribute(attr.name);
+    });
+  }
+
+  function writeAudioSourcesToAudioUi(targetUi = null) {
+    clearRootAudioSourceAttrs(container);
+
+    const used = new Set();
+    getSteps().forEach((step) => {
+      const mode = step.dataset.audioMode || 'none';
+      if (mode === 'none') return;
+      const id = parseInt(step.dataset.audio || '', 10);
+      if (Number.isFinite(id) && id >= 1) used.add(id);
+    });
+
+    if (!used.size) {
+      const existing = stickyRoot?.querySelector('.v-n-scrolly__audio-ui');
+      existing?.querySelector('.v-n-scrolly__audio-sources')?.remove();
+      return;
+    }
+
+    const audioUi = targetUi || ensureAudioUi();
+    if (!audioUi) return;
+
+    let sources = audioUi.querySelector('.v-n-scrolly__audio-sources');
+    if (!sources) {
+      sources = document.createElement('div');
+      sources.className = 'v-n-scrolly__audio-sources';
+      sources.hidden = true;
+      sources.setAttribute('aria-hidden', 'true');
+      audioUi.insertBefore(sources, audioUi.firstChild);
+    }
+    sources.innerHTML = '';
+    [...used].sort((a, b) => a - b).forEach((id) => {
+      const url = audioSources[id - 1];
+      if (!url) return;
+      const audio = document.createElement('audio');
+      audio.dataset.audio = String(id);
+      audio.setAttribute('data-audio', String(id));
+      audio.src = url;
+      audio.preload = 'none';
+      sources.appendChild(audio);
+    });
+  }
+
+  function migrateAudioRefs() {
+    getSteps().forEach((step) => {
+      const mode = step.dataset.audioMode || 'none';
+      if (mode === 'none') {
+        delete step.dataset.audio;
+        return;
+      }
+      const ref = (step.dataset.audio || '').trim();
+      if (!ref) return;
+      const id = parseInt(ref, 10);
+      if (Number.isFinite(id) && String(id) === ref && id >= 1) {
+        if (!audioSources[id - 1]) {
+          const fromUi = container
+            ?.querySelector(`.v-n-scrolly__audio-ui audio[data-audio="${id}"]`)
+            ?.getAttribute('src');
+          if (fromUi) {
+            while (audioSources.length < id) audioSources.push('');
+            audioSources[id - 1] = fromUi;
+          }
+        }
+        return;
+      }
+      step.dataset.audio = ensureAudioSource(ref);
+    });
+    writeAudioSourcesToAudioUi();
+  }
+
+  function syncMorphBgAttrs() {
+    const steps = getSteps();
+    steps.forEach((step, i) => {
+      const { role, morph } = getMorphRole(i);
+      if ((role === 'middle' || role === 'start') && morph) {
+        // middle hereda el bg del inicio; start conserva el suyo
+        if (role === 'middle') {
+          step.dataset.bg = steps[morph.start].dataset.bg || '0';
+        }
+      }
+    });
+  }
+
+  function getMorphOwnerForStep(index) {
+    const steps = getSteps();
+    for (let i = 0; i <= index; i += 1) {
+      const end = parseInt(steps[i]?.dataset.bgMorph || '', 10);
+      if (!Number.isFinite(end) || end <= i) continue;
+      if (index >= i && index <= end) {
+        return { start: i, end };
+      }
+    }
+    return null;
+  }
+
+  function getMorphRole(index) {
+    const morph = getMorphOwnerForStep(index);
+    if (!morph) return { role: 'free', morph: null };
+    if (index === morph.start) return { role: 'start', morph };
+    if (index === morph.end) return { role: 'end', morph };
+    return { role: 'middle', morph };
+  }
+
+  function clearInvalidMorphs() {
+    const steps = getSteps();
+    steps.forEach((step, i) => {
+      const end = parseInt(step.dataset.bgMorph || '', 10);
+      if (!Number.isFinite(end)) {
+        delete step.dataset.bgMorph;
+        return;
+      }
+      if (end <= i || end >= steps.length) {
+        delete step.dataset.bgMorph;
+        return;
+      }
+      for (let j = i + 1; j < end; j += 1) {
+        delete steps[j].dataset.bgMorph;
+      }
+    });
+  }
+
+  function normalizeSteps() {
+    clearInvalidMorphs();
+    ensureStepBgAttrs();
+    syncMorphBgAttrs();
+    getBgs().forEach((bg, i) => {
+      bg.dataset.bg = String(i);
+    });
+    getSteps().forEach((step, i) => {
+      if (i === 0) step.classList.add('is-pinned');
+      else step.classList.remove('is-pinned');
+    });
+  }
+
+  function getStepParagraph(step) {
+    const content = step?.querySelector('.step__content');
+    if (!content) return null;
+    let p = content.querySelector('p');
+    if (!p) {
+      p = document.createElement('p');
+      const text = content.textContent || '';
+      content.textContent = '';
+      p.textContent = text;
+      content.appendChild(p);
+    }
+    return p;
+  }
+
+  function getStepText(step) {
+    return getStepParagraph(step)?.textContent || '';
+  }
+
+  function setStepText(step, text) {
+    const p = getStepParagraph(step);
+    if (p) p.textContent = text;
+  }
+
+  function getStepData(step) {
+    const showText = step.dataset.showText !== 'false';
+    return {
+      text: showText ? getStepText(step) : (step.dataset.textCache || ''),
+      title: step.dataset.title || '',
+      showTitle: step.dataset.showTitle === 'true',
+      showText,
+      audio: step.dataset.audio || '',
+      audioMode: step.dataset.audioMode || 'none',
+      disabled: isStepDisabled(step),
+      bg: clampBgIndex(step.dataset.bg, 0),
+      bgMorph: step.dataset.bgMorph || '',
+    };
+  }
+
+  function stepCardLabel(index, title) {
+    const trimmed = (title || '').trim();
+    return trimmed ? `Step ${index + 1}: ${trimmed}` : `Step ${index + 1}`;
+  }
+
+  function isGlobalTitleEnabled() {
+    return cfg.showTitle;
+  }
+
+  function findAudioSourceIndex(index) {
+    const steps = getSteps();
+    for (let i = index; i >= 0; i -= 1) {
+      const mode = steps[i].dataset.audioMode || 'none';
+      const ref = (steps[i].dataset.audio || '').trim();
+      if (mode === 'replace') return i;
+      if (mode === 'none') return -1;
+      if (!ref && mode === 'continue') continue;
+    }
+    return -1;
+  }
+
+  function findPreviousAudioSource(index) {
+    const steps = getSteps();
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const mode = steps[i].dataset.audioMode || 'none';
+      if (mode === 'replace') return i;
+    }
+    return -1;
+  }
+
+  function propagateAudioFrom(sourceIndex) {
+    const steps = getSteps();
+    const source = steps[sourceIndex];
+    if (!source) return;
+    const id = (source.dataset.audio || '').trim();
+    if ((source.dataset.audioMode || 'none') !== 'replace') return;
+    for (let i = sourceIndex + 1; i < steps.length; i += 1) {
+      const mode = steps[i].dataset.audioMode || 'none';
+      if (mode === 'replace') break;
+      steps[i].dataset.audioMode = 'continue';
+      steps[i].dataset.audio = id;
+    }
+    writeAudioSourcesToAudioUi();
+  }
+
+  function clearAudioFrom(index) {
+    const steps = getSteps();
+    for (let i = index; i < steps.length; i += 1) {
+      const mode = steps[i].dataset.audioMode || 'none';
+      if (i > index && mode === 'replace') break;
+      steps[i].dataset.audioMode = 'none';
+      delete steps[i].dataset.audio;
+    }
+    writeAudioSourcesToAudioUi();
+  }
+
+  function inheritAudioAt(index) {
+    const steps = getSteps();
+    const step = steps[index];
+    if (!step) return;
+    const prev = findPreviousAudioSource(index);
+    if (prev < 0) {
+      step.dataset.audioMode = 'replace';
+      step.dataset.audio = ensureAudioSource(DEFAULT_AUDIO);
+      propagateAudioFrom(index);
+      return;
+    }
+    step.dataset.audioMode = 'continue';
+    step.dataset.audio = steps[prev].dataset.audio || '';
+    for (let i = index + 1; i < steps.length; i += 1) {
+      const mode = steps[i].dataset.audioMode || 'none';
+      if (mode === 'replace') break;
+      steps[i].dataset.audioMode = 'continue';
+      steps[i].dataset.audio = steps[prev].dataset.audio || '';
+    }
+    writeAudioSourcesToAudioUi();
+  }
+
+  function startOtherAudioAt(index) {
+    const steps = getSteps();
+    const step = steps[index];
+    if (!step) return;
+    const prev = findPreviousAudioSource(index);
+    const exclude = prev >= 0 ? (steps[prev].dataset.audio || '') : (step.dataset.audio || '');
+    step.dataset.audioMode = 'replace';
+    step.dataset.audio = pickLibraryAudio(exclude);
+    propagateAudioFrom(index);
+  }
+
+  function cancelOtherAudioAt(index) {
+    inheritAudioAt(index);
+  }
+
+  function pickLibraryAudio(excludeRef = '') {
+    const excludeUrl = resolveAudioRef(excludeRef) || excludeRef;
+    const next = AUDIO_LIBRARY.find((url) => url !== excludeUrl);
+    return ensureAudioSource(next || AUDIO_LIBRARY[0]);
+  }
+
+  function syncStepContentState(step) {
+    const content = step?.querySelector('.step__content');
+    if (!content) return;
+    const showText = step.dataset.showText !== 'false';
+    const empty = !showText || !getStepText(step).trim();
+    content.classList.toggle('is-empty', empty);
+  }
+
+  function syncAllStepContentState() {
+    getSteps().forEach(syncStepContentState);
+  }
+
+  function ensureStickyOrder() {
+    if (!stickyRoot) return;
+    const header = stickyRoot.querySelector('.v-n-scrolly__header');
+    const bg = stickyRoot.querySelector('.v-n-scrolly__bg');
+    const tools = stickyRoot.querySelector('.v-n-scrolly__nav-tools');
+    const audioUi = stickyRoot.querySelector('.v-n-scrolly__audio-ui');
+    if (header) stickyRoot.insertBefore(header, stickyRoot.firstChild);
+    if (bg) {
+      if (header) stickyRoot.insertBefore(bg, header.nextSibling);
+      else stickyRoot.insertBefore(bg, stickyRoot.firstChild);
+    }
+    if (tools && bg) stickyRoot.insertBefore(tools, bg.nextSibling);
+    else if (tools) stickyRoot.appendChild(tools);
+    if (audioUi) stickyRoot.appendChild(audioUi);
+  }
+
+  function ensureTools() {
+    if (!stickyRoot) return null;
+    let tools = stickyRoot.querySelector('.v-n-scrolly__nav-tools');
+    if (!tools) {
+      tools = document.createElement('div');
+      tools.className = 'v-n-scrolly__nav-tools';
+      const bg = stickyRoot.querySelector('.v-n-scrolly__bg');
+      if (bg) stickyRoot.insertBefore(tools, bg.nextSibling);
+      else stickyRoot.appendChild(tools);
+    }
+    ensureStickyOrder();
+    return tools;
+  }
+
+  function pruneToolsIfEmpty() {
+    const tools = stickyRoot?.querySelector('.v-n-scrolly__nav-tools');
+    if (tools && !tools.children.length) tools.remove();
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  }
+
+  function getActiveStep() {
+    return stepsWrap.querySelector('.step.is-active:not([data-disabled="true"])')
+      || getEnabledSteps()[0]
+      || null;
+  }
+
+  function getActiveStepIndex() {
+    const active = getActiveStep();
+    return active ? getEnabledSteps().indexOf(active) : 0;
+  }
+
+  function getNavBehavior() {
+    return cfg.navMode === 'instant' ? 'auto' : 'smooth';
+  }
+
+  function scrollToStep(index) {
+    const step = getEnabledSteps()[index];
+    if (!step) return;
+    step.scrollIntoView({ behavior: getNavBehavior(), block: 'start' });
+  }
+
+  function ensureHeaderTitleEl() {
+    if (!stickyRoot) return null;
+    let header = stickyRoot.querySelector('.v-n-scrolly__header');
+    if (!header) {
+      header = document.createElement('div');
+      header.className = 'v-n-scrolly__header';
+      header.innerHTML = '<div class="v-n-scrolly__header-title"></div>';
+      stickyRoot.insertBefore(header, stickyRoot.firstChild);
+    }
+    ensureStickyOrder();
+    return header.querySelector('.v-n-scrolly__header-title');
+  }
+
+  function removeHeader() {
+    stickyRoot?.querySelector('.v-n-scrolly__header')?.remove();
+  }
+
+  function animateHeader(nextTitle, immediate = false) {
+    const gsap = window.gsap;
+    if (nextTitle === currentHeaderTitle && stickyRoot?.querySelector('.v-n-scrolly__header-title')) {
+      return;
+    }
+    const headerTitle = ensureHeaderTitleEl();
+    if (!headerTitle) return;
+    currentHeaderTitle = nextTitle;
+    if (!gsap) {
+      headerTitle.textContent = nextTitle;
+      return;
+    }
+    titleTween?.kill?.();
+    if (immediate || headerTitle.textContent === nextTitle) {
+      headerTitle.textContent = nextTitle;
+      gsap.set(headerTitle, { opacity: 1, y: 0 });
+      return;
+    }
+    titleTween = gsap.timeline();
+    titleTween
+      .to(headerTitle, { opacity: 0, y: -10, duration: 0.2, ease: 'power1.out' })
+      .add(() => {
+        headerTitle.textContent = nextTitle;
+      })
+      .fromTo(headerTitle, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power2.out' });
+  }
+
+  function resolveStepTitle(step) {
+    if (!isGlobalTitleEnabled()) return '';
+    const stepTitle = (step?.dataset.showTitle === 'true' ? step.dataset.title : '') || '';
+    const trimmed = stepTitle.trim();
+    if (trimmed) return trimmed;
+    return headerFallbackInput?.value || 'Scrollytelling';
+  }
+
+  function syncHeaderFromActiveStep(immediate = false) {
+    if (!isGlobalTitleEnabled()) {
+      removeHeader();
+      currentHeaderTitle = '';
+      return;
+    }
+    animateHeader(resolveStepTitle(getActiveStep()), immediate);
+  }
+
+  function getAudio(url) {
+    if (!url) return null;
+    if (!audioMap.has(url)) {
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      audioMap.set(url, audio);
+    }
+    return audioMap.get(url) || null;
+  }
+
+  function pauseAllAudios(except = null) {
+    audioMap.forEach((audio) => {
+      if (audio !== except) audio.pause();
+    });
+  }
+
+  function hasActiveAudio() {
+    return getSteps().some((step) => {
+      if (isStepDisabled(step)) return false;
+      const mode = step.dataset.audioMode || 'none';
+      return mode !== 'none' && (step.dataset.audio || '').trim() !== '';
+    });
+  }
+
+  function stepHasAudio(step) {
+    if (!step || isStepDisabled(step)) return false;
+    const mode = step.dataset.audioMode || 'none';
+    return mode !== 'none' && Boolean(resolveAudioRef(step.dataset.audio || ''));
+  }
+
+  function ensureAudioUi() {
+    if (!stickyRoot) return null;
+    let audioUi = stickyRoot.querySelector('.v-n-scrolly__audio-ui');
+    if (!audioUi) {
+      audioUi = document.createElement('div');
+      audioUi.className = 'v-n-scrolly__audio-ui';
+      stickyRoot.appendChild(audioUi);
+    }
+    ensureStickyOrder();
+    return audioUi;
+  }
+
+  const ICON_PLAY = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  const ICON_PAUSE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+  const ICON_VOLUME = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+  const ICON_MUTE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6M17 9l6 6"/></svg>';
+
+  function refreshAudioUiFromActive() {
+    // Sin autoplay el botón play siempre se muestra; con autoplay respeta la opción
+    const showPlay = cfg.audioAutoplayGlobal ? cfg.showAudioPlay : true;
+    const showMute = cfg.showAudioMute;
+    const hasAudio = hasActiveAudio();
+    const stepAudioOn = stepHasAudio(getActiveStep());
+    if (globalAudioWrap) globalAudioWrap.hidden = false;
+    if (audioEmptyHint) audioEmptyHint.hidden = hasAudio;
+    if (audioOptions) audioOptions.hidden = !hasAudio;
+    syncAudioOptionsVisibility();
+
+    if (!hasAudio || (!showPlay && !showMute)) {
+      stickyRoot?.querySelector('.v-n-scrolly__audio-ui')?.remove();
+      return;
+    }
+
+    const audioUi = ensureAudioUi();
+    if (!audioUi) return;
+    audioUi.querySelectorAll('.v-n-scrolly__audio-btn').forEach((btn) => btn.remove());
+    audioUi.classList.toggle('is-step-muted', !stepAudioOn);
+    writeAudioSourcesToAudioUi(audioUi);
+
+    if (showPlay) {
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'v-n-scrolly__audio-btn';
+      playBtn.dataset.audioToggle = 'play';
+      playBtn.disabled = !stepAudioOn;
+      playBtn.setAttribute('aria-disabled', stepAudioOn ? 'false' : 'true');
+      playBtn.setAttribute('aria-label', !stepAudioOn
+        ? 'Audio no disponible en este step'
+        : (currentAudio && !currentAudio.paused ? 'Pausar' : 'Reproducir'));
+      playBtn.innerHTML = currentAudio && !currentAudio.paused && stepAudioOn ? ICON_PAUSE : ICON_PLAY;
+      audioUi.appendChild(playBtn);
+    }
+    if (showMute) {
+      const muteBtn = document.createElement('button');
+      muteBtn.type = 'button';
+      muteBtn.className = 'v-n-scrolly__audio-btn';
+      muteBtn.dataset.audioToggle = 'mute';
+      muteBtn.disabled = !stepAudioOn;
+      muteBtn.setAttribute('aria-disabled', stepAudioOn ? 'false' : 'true');
+      muteBtn.setAttribute('aria-label', !stepAudioOn
+        ? 'Audio no disponible en este step'
+        : (audioMuted ? 'Activar sonido' : 'Silenciar'));
+      muteBtn.innerHTML = audioMuted ? ICON_MUTE : ICON_VOLUME;
+      audioUi.appendChild(muteBtn);
+    }
+  }
+
+  function applyAudioForStep(step) {
+    if (!step || isStepDisabled(step)) {
+      if (!currentAudioUrl) {
+        refreshAudioUiFromActive();
+        return;
+      }
+      pauseAllAudios();
+      currentAudio = null;
+      currentAudioUrl = '';
+      refreshAudioUiFromActive();
+      return;
+    }
+
+    const mode = step.dataset.audioMode || 'none';
+    const url = resolveAudioRef(step.dataset.audio || '');
+
+    if (mode === 'none' || !url) {
+      if (!currentAudioUrl) {
+        refreshAudioUiFromActive();
+        return;
+      }
+      pauseAllAudios();
+      currentAudio = null;
+      currentAudioUrl = '';
+      refreshAudioUiFromActive();
+      return;
+    }
+
+    // Misma URL: no recrear/reiniciar; respeta pause global del usuario
+    if (currentAudio && currentAudioUrl === url) {
+      if (audioShouldPlay && currentAudio.paused) {
+        currentAudio.play().catch(() => {});
+      } else if (!audioShouldPlay && !currentAudio.paused) {
+        currentAudio.pause();
+      }
+      refreshAudioUiFromActive();
+      return;
+    }
+
+    const nextAudio = getAudio(url);
+    if (!nextAudio) return;
+    pauseAllAudios(nextAudio);
+    currentAudio = nextAudio;
+    currentAudioUrl = url;
+    currentAudio.muted = audioMuted;
+    if (audioShouldPlay) {
+      currentAudio.play().catch(() => {});
+    } else {
+      currentAudio.pause();
+    }
+    refreshAudioUiFromActive();
+  }
+
+  function refreshHeaderUi() {
+    if (!stickyRoot || !container) return;
+    const steps = getEnabledSteps();
+    const activeIndex = getActiveStepIndex();
+    const showButtons = cfg.showStepButtons;
+    const showArrows = cfg.showArrows;
+    const showCounter = cfg.showCounter;
+    const showDots = cfg.showDots;
+    const toolsNeeded = showButtons || showArrows || showCounter || showDots;
+
+    container.classList.toggle('has-shadows', cfg.arrowShadow && (showButtons || showArrows));
+
+    const tools = toolsNeeded ? ensureTools() : stickyRoot.querySelector('.v-n-scrolly__nav-tools');
+    const scope = tools || stickyRoot;
+
+    let navEl = container.querySelector('.v-n-scrolly__btn-nav');
+    if (showButtons) {
+      if (!navEl) {
+        navEl = document.createElement('div');
+        navEl.className = 'v-n-scrolly__btn-nav';
+        scope.appendChild(navEl);
+      } else if (tools && navEl.parentElement !== tools) {
+        tools.appendChild(navEl);
+      }
+      navEl.innerHTML = '';
+      steps.forEach((step, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `v-n-scrolly__nav-btn${index === activeIndex ? ' is-active' : ''}`;
+        btn.dataset.gotoStep = String(index);
+        btn.textContent = step.dataset.title || `Step ${index + 1}`;
+        navEl.appendChild(btn);
+      });
+    } else {
+      navEl?.remove();
+    }
+
+    let arrowsEl = container.querySelector('.v-n-scrolly__arrows');
+    if (showArrows) {
+      if (!arrowsEl) {
+        arrowsEl = document.createElement('div');
+        arrowsEl.className = 'v-n-scrolly__arrows';
+        scope.appendChild(arrowsEl);
+      } else if (tools && arrowsEl.parentElement !== tools) {
+        tools.appendChild(arrowsEl);
+      }
+      arrowsEl.innerHTML = '';
+      if (activeIndex > 0) {
+        const prev = document.createElement('button');
+        prev.type = 'button';
+        prev.className = 'v-n-scrolly__arrow';
+        prev.dataset.stepNav = 'prev';
+        prev.setAttribute('aria-label', 'Step anterior');
+        prev.textContent = 'Anterior';
+        arrowsEl.appendChild(prev);
+      }
+      if (activeIndex < steps.length - 1) {
+        const next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'v-n-scrolly__arrow';
+        next.dataset.stepNav = 'next';
+        next.setAttribute('aria-label', 'Siguiente step');
+        next.textContent = 'Siguiente';
+        arrowsEl.appendChild(next);
+      }
+      if (!arrowsEl.children.length) arrowsEl.remove();
+    } else {
+      arrowsEl?.remove();
+    }
+
+    let counterEl = container.querySelector('.v-n-scrolly__counter');
+    if (showCounter) {
+      if (!counterEl) {
+        counterEl = document.createElement('div');
+        counterEl.className = 'v-n-scrolly__counter';
+        scope.appendChild(counterEl);
+      } else if (tools && counterEl.parentElement !== tools) {
+        tools.appendChild(counterEl);
+      }
+      counterEl.textContent = `${activeIndex + 1} de ${steps.length}`;
+    } else {
+      counterEl?.remove();
+    }
+
+    let dotsEl = container.querySelector('.v-n-scrolly__dots');
+    if (showDots) {
+      if (!dotsEl) {
+        dotsEl = document.createElement('div');
+        dotsEl.className = 'v-n-scrolly__dots';
+        scope.appendChild(dotsEl);
+      } else if (tools && dotsEl.parentElement !== tools) {
+        tools.appendChild(dotsEl);
+      }
+      dotsEl.innerHTML = '';
+      steps.forEach((_, index) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = `v-n-scrolly__dot${index === activeIndex ? ' is-active' : ''}`;
+        dot.dataset.gotoStep = String(index);
+        dot.setAttribute('aria-label', `Ir al step ${index + 1}`);
+        dotsEl.appendChild(dot);
+      });
+    } else {
+      dotsEl?.remove();
+    }
+
+    if (!toolsNeeded) pruneToolsIfEmpty();
+    else ensureStickyOrder();
+  }
+
+  function setAllStepCardsCollapsed(collapsed) {
+    stepsList.querySelectorAll('.nb-step-card').forEach((card) => {
+      card.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
+      const body = card.querySelector('.nb-step-card__body');
+      if (body) body.hidden = collapsed;
+    });
+  }
+
+  function moveStep(from, to) {
+    if (from < 0 || to < 0 || from === to) return;
+    const steps = getSteps();
+    const moving = steps[from];
+    const anchor = steps[to];
+    if (!moving || !anchor) return;
+
+    if (from < to) {
+      stepsWrap.insertBefore(moving, anchor.nextSibling);
+    } else {
+      stepsWrap.insertBefore(moving, anchor);
+    }
+
+    normalizeSteps();
+    reinit();
+  }
+
+  function getCardIndexFromPoint(clientY) {
+    const cards = [...stepsList.querySelectorAll('.nb-step-card')];
+    let target = 0;
+    cards.forEach((card, index) => {
+      const rect = card.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (clientY >= mid) target = index;
+    });
+    return target;
+  }
+
+  function applyDragPreview(from, to) {
+    const cards = [...stepsList.querySelectorAll('.nb-step-card')];
+    cards.forEach((card, index) => {
+      if (index === from) {
+        return;
+      }
+      let shift = 0;
+      if (from < to && index > from && index <= to) shift = -1;
+      if (from > to && index >= to && index < from) shift = 1;
+      const height = cards[from]?.offsetHeight || 0;
+      card.style.transform = shift ? `translateY(${shift * (height + 10)}px)` : '';
+      card.style.transition = 'transform 0.16s ease';
+    });
+  }
+
+  function clearDragPreview() {
+    stepsList.querySelectorAll('.nb-step-card').forEach((card) => {
+      card.style.transform = '';
+      card.style.transition = '';
+      card.style.zIndex = '';
+      card.classList.remove('is-dragging', 'is-drag-origin');
+    });
+  }
+
+  function flipReorderCards(from, to) {
+    const cards = [...stepsList.querySelectorAll('.nb-step-card')];
+    const first = new Map();
+    cards.forEach((card) => first.set(card, card.getBoundingClientRect()));
+
+    const movingCard = cards[from];
+    const anchorCard = cards[to];
+    if (!movingCard || !anchorCard) return;
+
+    if (from < to) {
+      stepsList.insertBefore(movingCard, anchorCard.nextSibling);
+    } else {
+      stepsList.insertBefore(movingCard, anchorCard);
+    }
+
+    [...stepsList.querySelectorAll('.nb-step-card')].forEach((card) => {
+      const last = card.getBoundingClientRect();
+      const prev = first.get(card);
+      if (!prev) return;
+      const dx = prev.left - last.left;
+      const dy = prev.top - last.top;
+      if (!dx && !dy) return;
+      card.style.transition = 'none';
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        card.style.transition = 'transform 0.2s ease';
+        card.style.transform = '';
+      });
+    });
+  }
+
+  function bindPointerDrag(handle) {
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const card = handle.closest('.nb-step-card');
+      const from = parseInt(handle.dataset.dragHandle || '-1', 10);
+      if (!card || from < 0) return;
+
+      expandedStepCard = null;
+      setAllStepCardsCollapsed(true);
+      handle.setPointerCapture(event.pointerId);
+
+      pointerDrag = {
+        from,
+        to: from,
+        startY: event.clientY,
+        originTop: card.getBoundingClientRect().top,
+        card,
+        handle,
+      };
+      card.classList.add('is-dragging', 'is-drag-origin');
+      stepsList.classList.add('is-reordering');
+    });
+
+    handle.addEventListener('pointermove', (event) => {
+      if (!pointerDrag || pointerDrag.handle !== handle) return;
+      const dy = event.clientY - pointerDrag.startY;
+      pointerDrag.card.style.transform = `translateY(${dy}px)`;
+      pointerDrag.card.style.zIndex = '5';
+      pointerDrag.card.style.transition = 'none';
+      pointerDrag.to = getCardIndexFromPoint(event.clientY);
+      applyDragPreview(pointerDrag.from, pointerDrag.to);
+    });
+
+    const endDrag = (event) => {
+      if (!pointerDrag || pointerDrag.handle !== handle) return;
+      const { from, to } = pointerDrag;
+      try {
+        handle.releasePointerCapture(event.pointerId);
+      } catch {}
+
+      clearDragPreview();
+      stepsList.classList.remove('is-reordering');
+      pointerDrag = null;
+
+      if (from === to) return;
+      flipReorderCards(from, to);
+      moveStep(from, to);
+      window.setTimeout(() => {
+        expandedStepCard = null;
+        syncConfigPanel();
+      }, 220);
+    };
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+  }
+
+  function syncConfigPanel() {
+    const steps = getSteps();
+    const globalTitle = isGlobalTitleEnabled();
+    const bgCount = getBgs().length;
+    stepsList.innerHTML = '';
+
+    steps.forEach((step, i) => {
+      const data = getStepData(step);
+      const label = stepCardLabel(i, data.showTitle ? data.title : '');
+      const audioEnabled = data.audioMode === 'replace' || data.audioMode === 'continue';
+      const isSource = data.audioMode === 'replace';
+      const prevSource = findPreviousAudioSource(i);
+      const inheritSource = data.audioMode === 'continue'
+        ? findAudioSourceIndex(i)
+        : (isSource ? i : -1);
+      const canInherit = prevSource >= 0;
+      const showOtro = audioEnabled && data.audioMode === 'continue' && inheritSource >= 0;
+      const showCancelOtro = isSource && canInherit;
+      const { role: morphRole, morph } = getMorphRole(i);
+      const maxMorphExtend = Math.max(0, steps.length - 1 - i);
+      const morphExtend = morphRole === 'start' && morph
+        ? morph.end - morph.start
+        : Math.min(1, maxMorphExtend);
+
+      const card = document.createElement('div');
+
+      let startFields = '';
+      if (i === 0) {
+        startFields = `
+          <label>
+            <input type="checkbox" data-step-start-pinned checked disabled />
+            Visible al inicio
+          </label>
+        `;
+      }
+
+      let titleFields = '';
+      if (globalTitle) {
+        titleFields = `
+          <label><input type="checkbox" data-step-show-title="${i}" ${data.showTitle ? 'checked' : ''} /> Título del step</label>
+          ${data.showTitle ? `<input type="text" data-step-title="${i}" value="${escapeHtml(data.title)}" placeholder="Título del header" />` : ''}
+        `;
+      }
+
+      let bgFields = '';
+      if (morphRole === 'middle' && morph) {
+        bgFields = `
+          <p class="nb-morph-note">
+            Fondo en morph desde el step ${morph.start + 1}
+            y el bg-item ${clampBgIndex(steps[morph.start].dataset.bg) + 1}.
+            No se puede cambiar mientras dure la transición.
+          </p>
+        `;
+      } else if (morphRole === 'end' && morph) {
+        const options = Array.from({ length: bgCount }, (_, bi) =>
+          `<option value="${bi}" ${data.bg === bi ? 'selected' : ''}>Bg-item ${bi + 1}</option>`
+        ).join('');
+        bgFields = `
+          <p class="nb-morph-note">
+            Destino del morph iniciado en el step ${morph.start + 1}
+            (desde Bg-item ${clampBgIndex(steps[morph.start].dataset.bg) + 1}).
+          </p>
+          <label for="cfg-step-bg-${i}">Fondo destino (a morphear)</label>
+          <select id="cfg-step-bg-${i}" data-step-bg="${i}">${options}</select>
+        `;
+      } else {
+        const options = Array.from({ length: bgCount }, (_, bi) =>
+          `<option value="${bi}" ${data.bg === bi ? 'selected' : ''}>Bg-item ${bi + 1}</option>`
+        ).join('');
+        bgFields = `
+          <label for="cfg-step-bg-${i}">Fondo (bg-item)</label>
+          <select id="cfg-step-bg-${i}" data-step-bg="${i}">${options}</select>
+        `;
+      }
+
+      let morphFields = '';
+      if (morphRole === 'free' || morphRole === 'start') {
+        if (maxMorphExtend > 0) {
+          morphFields = `
+            <label>
+              <input type="checkbox" data-step-morph-enabled="${i}" ${morphRole === 'start' ? 'checked' : ''} />
+              Morph de fondo
+            </label>
+          `;
+          if (morphRole === 'start') {
+            morphFields += `
+              <label for="cfg-step-morph-len-${i}">Alargar durante (steps siguientes)</label>
+              <div class="nb-number">
+                <input type="number" id="cfg-step-morph-len-${i}" data-step-morph-len="${i}" min="1" max="${maxMorphExtend}" value="${morphExtend}" />
+                <div class="nb-number__spinners">
+                  <button class="nb-number__spin" type="button" data-number-spin="up" data-spin-for="cfg-step-morph-len-${i}" aria-label="Aumentar" ${morphExtend >= maxMorphExtend ? 'disabled' : ''}>
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 9.75 8 5.75 12 9.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="nb-number__spin" type="button" data-number-spin="down" data-spin-for="cfg-step-morph-len-${i}" aria-label="Reducir" ${morphExtend <= 1 ? 'disabled' : ''}>
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.25 8 10.25 12 6.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </div>
+              <p class="nb-help">La transición termina en el step ${i + morphExtend + 1}, donde eliges el fondo destino.</p>
+            `;
+          }
+        }
+      }
+
+      let audioExtra = '';
+      if (showOtro) {
+        audioExtra = `<button class="nb-btn nb-btn--ghost nb-btn--sm" type="button" data-audio-otro="${i}">+ Otro audio</button>`;
+      } else if (showCancelOtro) {
+        audioExtra = `<button class="nb-btn nb-btn--ghost nb-btn--sm" type="button" data-audio-cancel-otro="${i}">Quitar audio</button>`;
+      }
+
+      let audioFields = `
+        <div class="nb-audio-row">
+          <label><input type="checkbox" data-step-audio-enabled="${i}" ${audioEnabled ? 'checked' : ''} /> Audio</label>
+          ${audioExtra}
+        </div>
+      `;
+      if (isSource) {
+        const audioUrl = resolveAudioRef(data.audio) || DEFAULT_AUDIO;
+        audioFields += `<input type="text" data-step-audio="${i}" value="${escapeHtml(audioUrl)}" placeholder="${DEFAULT_AUDIO}" />`;
+      } else if (audioEnabled && inheritSource >= 0) {
+        audioFields += `<p class="nb-help">Audio del step ${inheritSource + 1}</p>`;
+      }
+
+      const eyeIcon = data.disabled
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m1 1 22 22"/></svg>`
+        : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+      card.className = `nb-step-card${data.disabled ? ' is-disabled' : ''}`;
+      card.setAttribute('data-collapsed', expandedStepCard === i ? 'false' : 'true');
+      card.dataset.stepCard = String(i);
+      if (data.disabled) card.dataset.disabled = 'true';
+
+      card.innerHTML = `
+        <div class="nb-step-card__header">
+          <button class="nb-drag-handle" data-drag-handle="${i}" type="button" aria-label="Reordenar step ${i + 1}">
+            <span class="nb-drag-handle__dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          </button>
+          <button class="nb-step-card__toggle" data-step-toggle="${i}" type="button">
+            <span class="nb-step-card__chevron" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+            </span>
+            <span class="nb-step-card__label">${escapeHtml(label)}</span>
+          </button>
+          <button class="nb-btn nb-btn--ghost nb-btn--icon nb-btn--sm" data-toggle-disabled="${i}" type="button" aria-label="${data.disabled ? 'Activar' : 'Desactivar'} step ${i + 1}" title="${data.disabled ? 'Activar step' : 'Desactivar step'}">
+            ${eyeIcon}
+          </button>
+          <button class="nb-btn nb-btn--danger nb-btn--icon nb-btn--sm" data-remove="${i}" type="button" aria-label="Eliminar step ${i + 1}">×</button>
+        </div>
+        <div class="nb-step-card__body" ${expandedStepCard === i ? '' : 'hidden'}>
+          ${startFields}
+          ${titleFields}
+          <label><input type="checkbox" data-step-show-text="${i}" ${data.showText ? 'checked' : ''} /> Texto del step</label>
+          ${data.showText ? `<textarea data-step-text="${i}" rows="3">${escapeHtml(data.text)}</textarea>` : ''}
+          ${bgFields}
+          ${morphFields}
+          ${audioFields}
+        </div>
+      `;
+      stepsList.appendChild(card);
+    });
+
+    stepsList.querySelectorAll('[data-drag-handle]').forEach((handle) => {
+      bindPointerDrag(handle);
+    });
+
+    stepsList.querySelectorAll('[data-remove]').forEach((btn) => {
+      btn.addEventListener('click', () => removeStep(parseInt(btn.dataset.remove, 10)));
+    });
+
+    stepsList.querySelectorAll('[data-toggle-disabled]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleStepDisabled(parseInt(btn.dataset.toggleDisabled, 10));
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-toggle]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const index = parseInt(btn.dataset.stepToggle, 10);
+        expandedStepCard = expandedStepCard === index ? null : index;
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-show-title]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.stepShowTitle, 10);
+        const step = getSteps()[index];
+        if (!step) return;
+        step.dataset.showTitle = String(input.checked);
+        if (input.checked && !(step.dataset.title || '').trim()) {
+          step.dataset.title = `Titulo ${index + 1}`;
+        }
+        if (!input.checked) {
+          delete step.dataset.showTitle;
+        } else {
+          step.dataset.showTitle = 'true';
+        }
+        syncHeaderFromActiveStep(true);
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-title]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const index = parseInt(input.dataset.stepTitle, 10);
+        const step = getSteps()[index];
+        if (!step) return;
+        step.dataset.title = input.value;
+        syncHeaderFromActiveStep(true);
+        const labelEl = stepsList.querySelector(`[data-step-card="${index}"] .nb-step-card__label`);
+        if (labelEl) labelEl.textContent = stepCardLabel(index, input.value);
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-show-text]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.stepShowText, 10);
+        const step = getSteps()[index];
+        const content = step?.querySelector('.step__content');
+        if (!step || !content) return;
+        if (input.checked) {
+          delete step.dataset.showText;
+          setStepText(step, step.dataset.textCache || '');
+        } else {
+          step.dataset.showText = 'false';
+          step.dataset.textCache = getStepText(step);
+          setStepText(step, '');
+        }
+        syncStepContentState(step);
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-text]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const step = getSteps()[parseInt(input.dataset.stepText, 10)];
+        if (!step) return;
+        setStepText(step, input.value);
+        syncStepContentState(step);
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-bg]').forEach((select) => {
+      select.addEventListener('change', () => {
+        const index = parseInt(select.dataset.stepBg, 10);
+        const step = getSteps()[index];
+        if (!step) return;
+        step.dataset.bg = String(clampBgIndex(select.value));
+        syncMorphBgAttrs();
+        reinit();
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-morph-enabled]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.stepMorphEnabled, 10);
+        const step = getSteps()[index];
+        if (!step) return;
+        if (input.checked) {
+          const max = Math.max(0, getSteps().length - 1 - index);
+          if (max < 1) {
+            delete step.dataset.bgMorph;
+          } else {
+            step.dataset.bgMorph = String(index + 1);
+          }
+        } else {
+          delete step.dataset.bgMorph;
+        }
+        clearInvalidMorphs();
+        syncMorphBgAttrs();
+        syncConfigPanel();
+        reinit();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-morph-len]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.stepMorphLen, 10);
+        const step = getSteps()[index];
+        if (!step) return;
+        const max = Math.max(1, getSteps().length - 1 - index);
+        const len = Math.min(max, Math.max(1, parseInt(input.value, 10) || 1));
+        input.value = String(len);
+        step.dataset.bgMorph = String(index + len);
+        clearInvalidMorphs();
+        syncMorphBgAttrs();
+        syncConfigPanel();
+        reinit();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-number-spin]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.spinFor || '');
+        if (!(input instanceof HTMLInputElement)) return;
+        const min = parseInt(input.min || '1', 10);
+        const max = parseInt(input.max || '999', 10);
+        let next = parseInt(input.value, 10) || min;
+        next += btn.dataset.numberSpin === 'up' ? 1 : -1;
+        next = Math.min(max, Math.max(min, next));
+        if (String(next) === input.value) return;
+        input.value = String(next);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-audio-enabled]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.stepAudioEnabled, 10);
+        if (input.checked) {
+          inheritAudioAt(index);
+        } else {
+          clearAudioFrom(index);
+        }
+        refreshAudioUiFromActive();
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-step-audio]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.stepAudio, 10);
+        const step = getSteps()[index];
+        if (!step) return;
+        step.dataset.audio = ensureAudioSource(input.value.trim() || DEFAULT_AUDIO);
+        step.dataset.audioMode = 'replace';
+        propagateAudioFrom(index);
+        refreshAudioUiFromActive();
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-audio-otro]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        startOtherAudioAt(parseInt(btn.dataset.audioOtro, 10));
+        refreshAudioUiFromActive();
+        syncConfigPanel();
+      });
+    });
+
+    stepsList.querySelectorAll('[data-audio-cancel-otro]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        cancelOtherAudioAt(parseInt(btn.dataset.audioCancelOtro, 10));
+        refreshAudioUiFromActive();
+        syncConfigPanel();
+      });
+    });
+
+    syncBgsPanel();
+  }
+
+  function syncBgsPanel() {
+    if (!bgsList) return;
+    bgsList.innerHTML = '';
+    getBgs().forEach((bg, i) => {
+      const imageUrl = getBgImageUrl(bg);
+      const card = document.createElement('div');
+      card.className = 'nb-bg-card';
+      card.innerHTML = `
+        <div class="nb-bg-card__header">
+          <span class="nb-bg-card__label">Bg-item ${i + 1}</span>
+          <button class="nb-btn nb-btn--danger nb-btn--icon nb-btn--sm" data-remove-bg="${i}" type="button" aria-label="Eliminar fondo ${i + 1}" ${getBgs().length <= 1 ? 'disabled' : ''}>×</button>
+        </div>
+        <div class="nb-bg-card__preview">
+          ${imageUrl
+            ? `<img src="${escapeHtml(imageUrl)}" alt="" />`
+            : `<span>Placeholder Bg-item ${i + 1}</span>`}
+        </div>
+        <label for="cfg-bg-image-${i}">Imagen (URL)</label>
+        <input type="text" id="cfg-bg-image-${i}" data-bg-image="${i}" value="${escapeHtml(imageUrl)}" placeholder="https://…" />
+      `;
+      bgsList.appendChild(card);
+    });
+
+    bgsList.querySelectorAll('[data-bg-image]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const index = parseInt(input.dataset.bgImage, 10);
+        const bg = getBgs()[index];
+        if (!bg) return;
+        setBgContent(bg, index, input.value);
+        reinit();
+        syncBgsPanel();
+      });
+    });
+
+    bgsList.querySelectorAll('[data-remove-bg]').forEach((btn) => {
+      btn.addEventListener('click', () => removeBg(parseInt(btn.dataset.removeBg, 10)));
+    });
+  }
+
+  function syncAudioOptionsVisibility() {
+    const showPlayField = document.querySelector('[data-audio-show-play-field]');
+    const showPlayInput = document.querySelector('[data-audio-global="showPlay"]');
+    const showOption = Boolean(cfg.audioAutoplayGlobal);
+
+    if (showPlayField) {
+      showPlayField.hidden = !showOption;
+      showPlayField.style.display = showOption ? '' : 'none';
+    }
+
+    if (!showOption) {
+      cfg.showAudioPlay = true;
+      if (showPlayInput instanceof HTMLInputElement) showPlayInput.checked = true;
+    }
+  }
+
+  function syncSettingsVisibility() {
+    const titleFields = document.querySelector('[data-header-title-fields]');
+    const transitionField = document.querySelector('[data-nav-transition-field]');
+    const shadowField = document.querySelector('[data-arrow-shadow-field]');
+    if (titleFields) titleFields.hidden = !cfg.showTitle;
+    if (transitionField) transitionField.hidden = !(cfg.showStepButtons || cfg.showArrows || cfg.showDots);
+    if (shadowField) shadowField.hidden = !(cfg.showStepButtons || cfg.showArrows);
+    syncAudioOptionsVisibility();
+  }
+
+  function syncParagraphFillers() {
+    if (!previewWrap || !container) return;
+
+    previewWrap.querySelectorAll('.scrolly-scroll-filler').forEach((el) => el.remove());
+    delete container.dataset.scrollPin;
+
+    if (cfg.fillerBefore) {
+      const before = document.createElement('div');
+      before.className = 'scrolly-scroll-filler scrolly-scroll-filler--before';
+      before.innerHTML = `
+        <h3>Antes del scrolly</h3>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+        <p>Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo. Quisque sit amet est et sapien ullamcorper pharetra. Vestibulum erat wisi, condimentum sed, commodo vitae, ornare sit amet, wisi.</p>
+        <p>Integer vitae libero ac risus egestas placerat. Sed dignissim lacinia nunc. Curabitur tortor. Pellentesque nibh. Aenean quam. In scelerisque sem at dolor. Maecenas mattis. Sed convallis tristique sem. Proin ut ligula vel nunc egestas porttitor. Morbi lectus risus, iaculis vel, suscipit quis, luctus non, massa.</p>
+      `;
+      previewWrap.insertBefore(before, container);
+    }
+
+    if (cfg.fillerAfter) {
+      const after = document.createElement('div');
+      after.className = 'scrolly-scroll-filler scrolly-scroll-filler--after';
+      after.innerHTML = `
+        <h3>Después del scrolly</h3>
+        <p>Fusce ac felis sit amet ligula pharetra condimentum. Maecenas egestas arcu quis ligula mattis placerat. Duis lobortis massa sed justo. Fusce ac turpis quis ligula lacinia aliquet. Mauris ipsum. Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh. Quisque volutpat condimentum velit.</p>
+        <p>Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam nec ante. Sed lacinia, urna non tincidunt mattis, tortor neque adipiscing diam, a cursus ipsum ante quis turpis. Nulla facilisi. Ut fringilla. Suspendisse potenti. Nunc feugiat mi a tellus consequat imperdiet.</p>
+        <p>Vestibulum sapien. Proin quam. Etiam ultrices. Suspendisse in justo eu magna luctus suscipit. Sed lectus. Integer euismod lacus luctus magna. Quisque cursus, metus vitae pharetra auctor, sem massa mattis sem, at interdum magna augue eget diam.</p>
+      `;
+      previewWrap.appendChild(after);
+    }
+  }
+
+  function syncFillerCheckboxes() {
+    const both = document.querySelector('[data-dev-filler="both"]');
+    const before = document.querySelector('[data-dev-filler="before"]');
+    const after = document.querySelector('[data-dev-filler="after"]');
+    if (before instanceof HTMLInputElement) before.checked = cfg.fillerBefore;
+    if (after instanceof HTMLInputElement) after.checked = cfg.fillerAfter;
+    if (both instanceof HTMLInputElement) both.checked = cfg.fillerBefore && cfg.fillerAfter;
+  }
+
+  function bindGlobalControls() {
+    document.querySelectorAll('[data-audio-global]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const key = input.dataset.audioGlobal;
+        const map = {
+          showPlay: 'showAudioPlay',
+          showMute: 'showAudioMute',
+          autoplay: 'audioAutoplayGlobal',
+        };
+        cfg[map[key]] = input.checked;
+
+        if (key === 'autoplay') {
+          if (input.checked) {
+            // Al activar autoplay: aparece Mostrar play, activada por defecto
+            cfg.showAudioPlay = true;
+            const showPlayInput = document.querySelector('[data-audio-global="showPlay"]');
+            if (showPlayInput instanceof HTMLInputElement) showPlayInput.checked = true;
+            audioShouldPlay = true;
+            applyAudioForStep(getActiveStep());
+          }
+          syncAudioOptionsVisibility();
+        }
+
+        refreshAudioUiFromActive();
+      });
+    });
+
+    document.querySelectorAll('[data-header-option]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const key = input.dataset.headerOption;
+        const map = {
+          showTitle: 'showTitle',
+          showButtons: 'showStepButtons',
+          navMode: 'navMode',
+          showArrows: 'showArrows',
+          arrowShadow: 'arrowShadow',
+          showCounter: 'showCounter',
+          showDots: 'showDots',
+        };
+        cfg[map[key]] = input.type === 'checkbox' ? input.checked : input.value;
+        refreshHeaderUi();
+        syncHeaderFromActiveStep(true);
+        syncSettingsVisibility();
+        if (key === 'showTitle') syncConfigPanel();
+      });
+    });
+
+    document.querySelectorAll('[data-dev-filler]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const key = input.dataset.devFiller;
+        if (key === 'both') {
+          cfg.fillerBefore = input.checked;
+          cfg.fillerAfter = input.checked;
+        } else if (key === 'before') {
+          cfg.fillerBefore = input.checked;
+        } else if (key === 'after') {
+          cfg.fillerAfter = input.checked;
+        }
+        syncFillerCheckboxes();
+        syncParagraphFillers();
+        reinit();
+      });
+    });
+  }
+
+  function toggleStepDisabled(index) {
+    const step = getSteps()[index];
+    if (!step) return;
+    const next = step.dataset.disabled !== 'true';
+    if (next) {
+      step.dataset.disabled = 'true';
+    } else {
+      delete step.dataset.disabled;
+    }
+    syncConfigPanel();
+    reinit();
+  }
+
+  function addStep() {
+    const step = document.createElement('div');
+    step.className = 'step';
+    step.dataset.bg = String(clampBgIndex(getSteps().length));
+    step.innerHTML = `<div class="step__content"><p>Nuevo step</p></div>`;
+
+    const prev = getSteps().at(-1);
+    const prevMode = prev?.dataset.audioMode || 'none';
+    if (prevMode === 'replace' || prevMode === 'continue') {
+      step.dataset.audioMode = 'continue';
+      step.dataset.audio = prev.dataset.audio || '';
+    }
+
+    stepsWrap.appendChild(step);
+    normalizeSteps();
+    expandedStepCard = getSteps().length - 1;
+    syncConfigPanel();
+    reinit();
+  }
+
+  function removeStep(index) {
+    if (getSteps().length <= 1) return;
+    getSteps()[index]?.remove();
+    normalizeSteps();
+    syncConfigPanel();
+    reinit();
+  }
+
+  function addBg() {
+    const index = getBgs().length;
+    bgsWrap.appendChild(createPlaceholder(index));
+    relabelBgPlaceholders();
+    syncConfigPanel();
+    reinit();
+  }
+
+  function removeBg(index) {
+    if (getBgs().length <= 1) return;
+    getBgs()[index]?.remove();
+    relabelBgPlaceholders();
+    getSteps().forEach((step) => {
+      const bg = clampBgIndex(step.dataset.bg);
+      step.dataset.bg = String(bg);
+    });
+    normalizeSteps();
+    syncConfigPanel();
+    reinit();
+  }
+
+  function reinit() {
+    if (container) {
+      if (cfg.fadeIn !== 0.8) container.dataset.fadeIn = String(cfg.fadeIn);
+      else delete container.dataset.fadeIn;
+      if (cfg.fadeOut !== 0.4) container.dataset.fadeOut = String(cfg.fadeOut);
+      else delete container.dataset.fadeOut;
+      clearRootAudioSourceAttrs(container);
+    }
+    if (container?.__scrollyCleanup) container.__scrollyCleanup();
+    const ST = window.__gsapST?.ScrollTrigger;
+    if (ST) ST.getAll().forEach((trigger) => trigger.kill());
+    scrolly();
+    syncHeaderFromActiveStep(true);
+    refreshAudioUiFromActive();
+    refreshHeaderUi();
+  }
+
+  document.querySelectorAll('[data-param]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const key = input.dataset.param;
+      if (key === 'fadeIn') cfg.fadeIn = parseFloat(input.value) || 0.8;
+      if (key === 'fadeOut') cfg.fadeOut = parseFloat(input.value) || 0.4;
+      reinit();
+    });
+  });
+
+  headerFallbackInput?.addEventListener('input', () => syncHeaderFromActiveStep(true));
+  addBtn?.addEventListener('click', addStep);
+  addBgBtn?.addEventListener('click', addBg);
+  bindGlobalControls();
+
+  container?.addEventListener('click', (event) => {
+    const audioToggle = event.target.closest('[data-audio-toggle]');
+    if (audioToggle) {
+      if (audioToggle.disabled || audioToggle.getAttribute('aria-disabled') === 'true') return;
+      if (audioToggle.dataset.audioToggle === 'play') {
+        if (!currentAudio) {
+          audioShouldPlay = true;
+          applyAudioForStep(getActiveStep());
+          refreshAudioUiFromActive();
+          return;
+        }
+        if (currentAudio.paused) {
+          audioShouldPlay = true;
+          currentAudio.play().catch(() => {});
+        } else {
+          audioShouldPlay = false;
+          pauseAllAudios();
+        }
+        refreshAudioUiFromActive();
+        return;
+      }
+      if (audioToggle.dataset.audioToggle === 'mute') {
+        audioMuted = !audioMuted;
+        audioMap.forEach((audio) => {
+          audio.muted = audioMuted;
+        });
+        refreshAudioUiFromActive();
+        return;
+      }
+    }
+
+    const target = event.target.closest('[data-goto-step], [data-step-nav]');
+    if (!target) return;
+    if (target.dataset.gotoStep != null) {
+      scrollToStep(parseInt(target.dataset.gotoStep, 10));
+      return;
+    }
+    const activeIndex = getActiveStepIndex();
+    const maxIndex = getEnabledSteps().length - 1;
+    if (target.dataset.stepNav === 'prev') scrollToStep(Math.max(0, activeIndex - 1));
+    if (target.dataset.stepNav === 'next') scrollToStep(Math.min(maxIndex, activeIndex + 1));
+  });
+
+  container?.addEventListener('scrolly:step', (event) => {
+    const step = event.detail?.step || null;
+    syncHeaderFromActiveStep(Boolean(event.detail?.immediate));
+    applyAudioForStep(step);
+    refreshHeaderUi();
+  });
+
+  function buildExportHtml() {
+    syncMorphBgAttrs();
+    migrateAudioRefs();
+    writeAudioSourcesToAudioUi();
+    clearRootAudioSourceAttrs(container);
+
+    const clone = container.cloneNode(true);
+
+    clone.querySelectorAll('*').forEach((el) => {
+      [...el.attributes].forEach((attr) => {
+        if (attr.name.startsWith('data-astro-') || attr.name === 'id') {
+          el.removeAttribute(attr.name);
+        }
+      });
+      el.classList.remove('is-active', 'is-morphing');
+      if (el.hasAttribute('style') && el.classList.contains('bg-item')) {
+        el.removeAttribute('style');
+      }
+    });
+    clone.removeAttribute('id');
+    [...clone.attributes].forEach((attr) => {
+      if (attr.name !== 'class') clone.removeAttribute(attr.name);
+    });
+    clearRootAudioSourceAttrs(clone);
+
+    clone.querySelectorAll('.step[data-disabled="true"]').forEach((el) => el.remove());
+
+    const steps = [...clone.querySelectorAll('.step')];
+    clone.querySelectorAll('.bg-item').forEach((bg, index) => {
+      bg.removeAttribute('style');
+      bg.removeAttribute('data-bg-slot');
+      bg.classList.remove('is-active', 'is-morphing');
+      bg.setAttribute('data-bg', String(index));
+    });
+
+    // Solo data no-default en el root (fade 0.8 / 0.4 = omitidos)
+    if (cfg.fadeIn !== 0.8) clone.setAttribute('data-fade-in', String(cfg.fadeIn));
+    if (cfg.fadeOut !== 0.4) clone.setAttribute('data-fade-out', String(cfg.fadeOut));
+    if (cfg.navMode !== 'smooth') clone.setAttribute('data-nav-mode', cfg.navMode);
+    if (cfg.audioAutoplayGlobal) clone.setAttribute('data-audio-autoplay', '');
+    if (hasActiveAudio()) {
+      if (!cfg.showAudioPlay) clone.setAttribute('data-hide-audio-play', '');
+      if (!cfg.showAudioMute) clone.setAttribute('data-hide-audio-mute', '');
+    }
+
+    const usedAudioIds = new Set();
+    steps.forEach((step) => {
+      const mode = step.getAttribute('data-audio-mode') || 'none';
+      let audio = (step.getAttribute('data-audio') || '').trim();
+      if (audio.includes('://') || audio.endsWith('.mp3')) {
+        audio = ensureAudioSource(audio);
+        step.setAttribute('data-audio', audio);
+      }
+      if (mode !== 'none' && audio) {
+        const id = parseInt(audio, 10);
+        if (Number.isFinite(id) && id >= 1) usedAudioIds.add(id);
+      }
+    });
+
+    // Fuentes de audio dentro de __audio-ui
+    let audioUi = clone.querySelector('.v-n-scrolly__audio-ui');
+    if (usedAudioIds.size) {
+      if (!audioUi) {
+        const sticky = clone.querySelector('.v-n-scrolly__sticky');
+        audioUi = document.createElement('div');
+        audioUi.className = 'v-n-scrolly__audio-ui';
+        sticky?.appendChild(audioUi);
+      }
+      let sources = audioUi.querySelector('.v-n-scrolly__audio-sources');
+      if (!sources) {
+        sources = document.createElement('div');
+        sources.className = 'v-n-scrolly__audio-sources';
+        sources.hidden = true;
+        sources.setAttribute('aria-hidden', 'true');
+        audioUi.insertBefore(sources, audioUi.firstChild);
+      }
+      sources.innerHTML = '';
+      [...usedAudioIds].sort((a, b) => a - b).forEach((id) => {
+        const url = audioSources[id - 1];
+        if (!url) return;
+        const audio = document.createElement('audio');
+        audio.setAttribute('data-audio', String(id));
+        audio.setAttribute('src', url);
+        audio.setAttribute('preload', 'none');
+        sources.appendChild(audio);
+      });
+    } else {
+      audioUi?.querySelector('.v-n-scrolly__audio-sources')?.remove();
+    }
+
+    steps.forEach((step) => {
+      const title = (step.getAttribute('data-title') || '').trim();
+      const mode = step.getAttribute('data-audio-mode') || 'none';
+      const audio = (step.getAttribute('data-audio') || '').trim();
+      const showTitle = step.getAttribute('data-show-title') === 'true';
+      const showText = step.getAttribute('data-show-text') !== 'false';
+      const bg = step.getAttribute('data-bg');
+      const bgMorph = step.getAttribute('data-bg-morph');
+      const isPinned = step.classList.contains('is-pinned');
+
+      [...step.attributes].forEach((attr) => {
+        if (attr.name !== 'class') step.removeAttribute(attr.name);
+      });
+
+      if (isPinned) step.classList.add('is-pinned');
+      else step.classList.remove('is-pinned');
+      if (bg != null && bg !== '') step.setAttribute('data-bg', bg);
+      if (bgMorph) step.setAttribute('data-bg-morph', bgMorph);
+      if (showTitle && title) step.setAttribute('data-title', title);
+      if (!showText) step.setAttribute('data-show-text', 'false');
+      if (mode === 'replace' && audio) {
+        step.setAttribute('data-audio', audio);
+      } else if (mode === 'continue') {
+        step.setAttribute('data-audio-mode', 'continue');
+        if (audio) step.setAttribute('data-audio', audio);
+      }
+    });
+
+    return formatExportHtml(clone);
+  }
+
+  function formatExportHtml(root) {
+    const VOID = new Set([
+      'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+      'link', 'meta', 'param', 'source', 'track', 'wbr',
+    ]);
+    const INLINE_TEXT = new Set(['p', 'span', 'a', 'strong', 'em', 'label', 'button', 'title']);
+
+    function escapeAttr(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;');
+    }
+
+    function serializeAttrs(el) {
+      return [...el.attributes]
+        .map((attr) => {
+          if (attr.value === '' && ['data-audio-autoplay', 'hidden', 'disabled', 'checked'].includes(attr.name)) {
+            return ` ${attr.name}`;
+          }
+          return ` ${attr.name}="${escapeAttr(attr.value)}"`;
+        })
+        .join('');
+    }
+
+    function meaningfulChildren(el) {
+      return [...el.childNodes].filter((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) return true;
+        if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent?.trim());
+        return false;
+      });
+    }
+
+    function serialize(node, depth) {
+      const pad = '  '.repeat(depth);
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent?.replace(/\s+/g, ' ').trim();
+        if (!text) return '';
+        return `${pad}${escapeHtml(text)}\n`;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const tag = node.tagName.toLowerCase();
+      const attrs = serializeAttrs(node);
+
+      if (VOID.has(tag)) {
+        return `${pad}<${tag}${attrs}>\n`;
+      }
+
+      const kids = meaningfulChildren(node);
+      if (!kids.length) {
+        return `${pad}<${tag}${attrs}></${tag}>\n`;
+      }
+
+      const onlyText = kids.length === 1 && kids[0].nodeType === Node.TEXT_NODE;
+      if (onlyText && (INLINE_TEXT.has(tag) || kids[0].textContent.trim().length < 120)) {
+        const text = escapeHtml(kids[0].textContent.replace(/\s+/g, ' ').trim());
+        return `${pad}<${tag}${attrs}>${text}</${tag}>\n`;
+      }
+
+      let out = `${pad}<${tag}${attrs}>\n`;
+      kids.forEach((child) => {
+        out += serialize(child, depth + 1);
+      });
+      out += `${pad}</${tag}>\n`;
+      return out;
+    }
+
+    return `${serialize(root, 0).trimEnd()}\n`;
+  }
+
+  exportBtn?.addEventListener('click', async () => {
+    const originalLabel = exportBtn.textContent;
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Copiando…';
+    try {
+      const html = buildExportHtml();
+      await navigator.clipboard.writeText(html);
+      exportBtn.textContent = 'Copiado';
+    } catch {
+      exportBtn.textContent = 'Error';
+    }
+    window.setTimeout(() => {
+      exportBtn.disabled = false;
+      exportBtn.textContent = originalLabel || 'Copiar HTML';
+    }, 1200);
+  });
+
+  migrateAudioRefs();
+  normalizeSteps();
+  getSteps().forEach((step) => getStepParagraph(step));
+  syncConfigPanel();
+  syncSettingsVisibility();
+  syncAllStepContentState();
+
+  window.__gsapST = { ScrollTrigger };
+  audioShouldPlay = Boolean(cfg.audioAutoplayGlobal);
+  scrolly();
+  syncHeaderFromActiveStep(true);
+  refreshAudioUiFromActive();
+  refreshHeaderUi();
+</script>

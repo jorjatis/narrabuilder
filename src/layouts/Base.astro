@@ -1,0 +1,352 @@
+---
+import '../styles/tokens.css';
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} — Narrabuilder</title>
+  <script is:inline>
+    (function () {
+      try {
+        var stored = localStorage.getItem('nb-theme');
+        var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.min.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.min.css"
+  />
+</head>
+<body>
+  <header class="nb-chrome">
+    <a href="/" class="nb-chrome__logo">Narrabuilder</a>
+    <div class="nb-chrome__meta">
+      <slot name="chrome-meta" />
+    </div>
+    <div class="nb-chrome__actions">
+      <slot name="chrome-actions" />
+      <button
+        class="nb-btn nb-btn--icon nb-theme-toggle"
+        type="button"
+        data-theme-toggle
+        aria-label="Cambiar tema"
+        title="Cambiar tema"
+      >
+        <svg class="nb-theme-toggle__sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+        <svg class="nb-theme-toggle__moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+  <slot />
+</body>
+</html>
+
+<style lang="scss" is:global>
+  /* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: design.md · designed-as-app */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    overflow-x: clip;
+    font-family: var(--font-body);
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100vh;
+    overflow-x: clip;
+    padding-top: var(--chrome-h);
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  body:has(.nb-builder) {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .nb-chrome {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    height: var(--chrome-h);
+    padding: 0 var(--space-md);
+    background: color-mix(in oklch, var(--color-paper) 88%, transparent);
+    border-bottom: var(--rule-hair) solid var(--color-rule);
+    backdrop-filter: blur(12px);
+
+    &__logo {
+      flex-shrink: 0;
+      font-family: var(--font-display);
+      font-size: var(--text-md);
+      font-weight: 600;
+      font-style: normal;
+      letter-spacing: -0.022em;
+      color: var(--color-ink);
+      text-decoration: none;
+      transition: color var(--dur-micro) var(--ease-out);
+
+      &:hover {
+        color: var(--color-accent);
+      }
+    }
+
+    &__meta {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-muted);
+      overflow: hidden;
+    }
+
+    &__meta-cluster {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2xs);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    &__actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2xs);
+      margin-left: auto;
+
+      .nb-btn {
+        height: 32px;
+        min-height: 32px;
+        box-sizing: border-box;
+      }
+    }
+
+    &__sep {
+      width: var(--rule-hair);
+      height: 14px;
+      background: var(--color-rule-2);
+      flex-shrink: 0;
+    }
+
+    &__doc {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--color-ink-2);
+    }
+  }
+
+  .nb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 14px;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    font-style: normal;
+    line-height: 1;
+    color: var(--color-btn-ink);
+    background: var(--color-btn);
+    border: var(--rule-hair) solid transparent;
+    border-radius: var(--radius-input);
+    cursor: pointer;
+    text-decoration: none;
+    transition:
+      background var(--dur-micro) var(--ease-out),
+      color var(--dur-micro) var(--ease-out),
+      border-color var(--dur-micro) var(--ease-out),
+      transform var(--dur-micro) var(--ease-out),
+      opacity var(--dur-micro) var(--ease-out);
+
+    &:hover {
+      background: var(--color-btn-hover);
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+      transform: none;
+    }
+
+    &--sm {
+      min-height: 28px;
+      padding: 0 10px;
+      font-size: var(--text-xs);
+    }
+
+    &--ghost {
+      color: var(--color-ink-2);
+      background: transparent;
+      border-color: var(--color-rule);
+
+      &:hover {
+        color: var(--color-ink);
+        background: var(--color-paper-2);
+        border-color: var(--color-rule-2);
+      }
+    }
+
+    &--soft {
+      color: var(--color-accent);
+      background: var(--color-accent-soft);
+      border-color: transparent;
+
+      &:hover {
+        background: color-mix(in oklch, var(--color-accent-soft) 70%, var(--color-accent));
+      }
+    }
+
+    &--danger {
+      color: var(--color-danger);
+      background: transparent;
+      border-color: transparent;
+
+      &:hover {
+        background: var(--color-danger-soft);
+      }
+    }
+
+    &--icon {
+      width: 32px;
+      min-height: 32px;
+      padding: 0;
+    }
+
+    &--sm.nb-btn--icon {
+      width: 28px;
+      min-height: 28px;
+    }
+  }
+
+  .nb-btn.nb-theme-toggle {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    color: var(--color-btn-ink);
+    background: var(--color-btn);
+    border-color: transparent;
+
+    &:hover {
+      color: var(--color-btn-ink);
+      background: var(--color-btn-hover);
+    }
+
+    .nb-theme-toggle__sun,
+    .nb-theme-toggle__moon {
+      display: none;
+      flex-shrink: 0;
+    }
+  }
+
+  html[data-theme='dark'] .nb-btn.nb-theme-toggle .nb-theme-toggle__sun,
+  html:not([data-theme]) .nb-btn.nb-theme-toggle .nb-theme-toggle__sun {
+    display: block;
+  }
+
+  html[data-theme='light'] .nb-btn.nb-theme-toggle .nb-theme-toggle__moon {
+    display: block;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 150ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+
+<script>
+  const root = document.documentElement;
+  const toggle = document.querySelector('[data-theme-toggle]');
+
+  function currentTheme() {
+    return root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function setTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('nb-theme', theme);
+    } catch {}
+    if (toggle) {
+      toggle.setAttribute(
+        'aria-label',
+        theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
+      );
+    }
+  }
+
+  setTheme(currentTheme());
+  toggle?.addEventListener('click', () => {
+    setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+</script>
