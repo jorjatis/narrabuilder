@@ -7,19 +7,20 @@ interface Props {
 const { title } = Astro.props;
 ---
 <!doctype html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title} — Narrabuilder</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <script is:inline>
     (function () {
       try {
         var stored = localStorage.getItem('nb-theme');
-        var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+        var theme = stored === 'light' || stored === 'dark' ? stored : 'light';
         document.documentElement.setAttribute('data-theme', theme);
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.setAttribute('data-theme', 'light');
       }
     })();
   </script>
@@ -35,7 +36,15 @@ const { title } = Astro.props;
 </head>
 <body>
   <header class="nb-chrome">
-    <a href="/" class="nb-chrome__logo">Narrabuilder</a>
+    <a href="/" class="nb-chrome__logo" aria-label="Narrabuilder" title="Narrabuilder">
+      <svg class="nb-chrome__mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.14"/>
+        <rect x="6" y="6" width="7" height="20" rx="1.75" fill="currentColor"/>
+        <rect x="15" y="6" width="11" height="8" rx="1.75" fill="currentColor"/>
+        <rect x="15" y="17" width="11" height="9" rx="1.75" fill="currentColor" opacity="0.45"/>
+      </svg>
+      <span class="nb-chrome__brand">Narrabuilder</span>
+    </a>
     <div class="nb-chrome__meta">
       <slot name="chrome-meta" />
     </div>
@@ -131,6 +140,9 @@ const { title } = Astro.props;
     backdrop-filter: blur(12px);
 
     &__logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
       flex-shrink: 0;
       font-family: var(--font-display);
       font-size: var(--text-md);
@@ -144,6 +156,16 @@ const { title } = Astro.props;
       &:hover {
         color: var(--color-accent);
       }
+    }
+
+    &__mark {
+      display: block;
+      flex-shrink: 0;
+      border-radius: 6px;
+    }
+
+    &__brand {
+      white-space: nowrap;
     }
 
     &__meta {
@@ -171,7 +193,13 @@ const { title } = Astro.props;
       gap: var(--space-2xs);
       margin-left: auto;
 
-      .nb-btn {
+      .nb-btn:not(.nb-btn--export) {
+        height: 32px;
+        min-height: 32px;
+        box-sizing: border-box;
+      }
+
+      .nb-btn--export {
         height: 32px;
         min-height: 32px;
         box-sizing: border-box;
@@ -276,6 +304,16 @@ const { title } = Astro.props;
       padding: 0;
     }
 
+    &--export {
+      .nb-btn__compact {
+        display: none;
+      }
+
+      .nb-btn__full {
+        display: inline;
+      }
+    }
+
     &--sm.nb-btn--icon {
       width: 28px;
       min-height: 28px;
@@ -303,13 +341,54 @@ const { title } = Astro.props;
     }
   }
 
-  html[data-theme='dark'] .nb-btn.nb-theme-toggle .nb-theme-toggle__sun,
-  html:not([data-theme]) .nb-btn.nb-theme-toggle .nb-theme-toggle__sun {
+  html[data-theme='dark'] .nb-btn.nb-theme-toggle .nb-theme-toggle__sun {
     display: block;
   }
 
-  html[data-theme='light'] .nb-btn.nb-theme-toggle .nb-theme-toggle__moon {
+  html[data-theme='light'] .nb-btn.nb-theme-toggle .nb-theme-toggle__moon,
+  html:not([data-theme]) .nb-btn.nb-theme-toggle .nb-theme-toggle__moon {
     display: block;
+  }
+
+  @media (max-width: 699px) {
+    .nb-chrome__brand {
+      display: none;
+    }
+
+    .nb-chrome__actions .nb-btn--export {
+      flex-direction: column;
+      gap: 1px;
+      width: auto;
+      min-width: 40px;
+      height: auto;
+      min-height: 0;
+      padding: 4px 8px 3px;
+      line-height: 1;
+
+      .nb-btn__full {
+        display: none;
+      }
+
+      .nb-btn__compact {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+      }
+
+      .nb-btn__icon {
+        display: block;
+        flex-shrink: 0;
+      }
+
+      .nb-btn__caption {
+        font-size: 9px;
+        font-weight: 650;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        line-height: 1.1;
+      }
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -329,7 +408,7 @@ const { title } = Astro.props;
   const toggle = document.querySelector('[data-theme-toggle]');
 
   function currentTheme() {
-    return root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    return root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   }
 
   function setTheme(theme) {

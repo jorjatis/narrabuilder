@@ -13,19 +13,24 @@ modern-minimal
 - Content pages: n/a
 
 ## Theme
-Custom tuned — **dark by default**, light optional · indigo accent (not purple-slop)
+Custom tuned — **light by default**, dark optional · indigo accent (not purple-slop)
 
-Default (`data-theme="dark"`):
+Default (`data-theme="light"`): warm paper · cool ink · indigo accent.
+
+Dark (`data-theme="dark"`):
 - `--color-paper`   oklch(15% 0.012 265)
 - `--color-paper-2` oklch(18% 0.012 265)
 - `--color-paper-3` oklch(22% 0.014 265)
 - `--color-ink`     oklch(96% 0.006 95)
 - `--color-accent`  oklch(72% 0.14 265)
 
-Light (`data-theme="light"`): warm paper · cool ink · same accent family.
+Light (`data-theme="light"`):
+- `--color-paper`   oklch(98.5% 0.004 95)
+- `--color-ink`     oklch(22% 0.012 265)
+- `--color-accent`  oklch(55% 0.17 265)
 
 Toggle: chrome theme button · persists in `localStorage.nb-theme`.
-Axes: dark paper (default) · geometric-sans · cool accent
+Axes: light paper (default) · geometric-sans · cool accent
 
 **Artboard rule:** theme applies only to product chrome (top bar, rail, home).
 The scrolly preview canvas is always white (`#fff`) and never inherits `data-theme`.
